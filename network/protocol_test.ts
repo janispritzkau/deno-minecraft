@@ -1,24 +1,25 @@
 import {
-  assert,
   assertEquals,
+  assertInstanceOf,
   assertThrows,
-} from "https://deno.land/std/testing/asserts.ts";
+} from "https://deno.land/std@0.161.0/testing/asserts.ts";
 
+import { Packet } from "./packet.ts";
 import { Protocol, UnregisteredPacket } from "./protocol.ts";
-import { Packet, PacketReader, PacketWriter } from "./packet.ts";
+import { Reader, Writer } from "../io/mod.ts";
 
 interface ServerPacketHandler {
   handlePacket(packet: ServerPacket): void;
 }
 
 class ServerPacket implements Packet<ServerPacketHandler> {
-  static read(reader: PacketReader) {
+  static read(reader: Reader) {
     return new this(reader.readString());
   }
 
   constructor(public name: string) {}
 
-  write(writer: PacketWriter) {
+  write(writer: Writer) {
     writer.writeString(this.name);
   }
 
@@ -41,7 +42,7 @@ Deno.test("protocol", () => {
   protocol.registerServerbound(0, ServerPacket);
   protocol.registerClientbound(1, ClientPacket);
 
-  const buf = new PacketWriter().writeVarInt(0).writeString("hello").bytes();
+  const buf = new Writer().writeVarInt(0).writeString("hello").bytes();
   const serverPacket = protocol.deserializeServerbound(buf);
 
   assertEquals(protocol.serializeServerbound(serverPacket), buf);
@@ -59,12 +60,14 @@ Deno.test("protocol", () => {
 });
 
 Deno.test("unregistered packet", () => {
-  const protocol = new Protocol();
-
-  assertThrows(() => protocol.deserializeClientbound(new Uint8Array([0])));
-
-  const packet = protocol.deserializeClientbound(new Uint8Array([0]), true);
-  assert(packet instanceof UnregisteredPacket);
+  assertThrows(() =>
+    new Protocol().deserializeClientbound(new Uint8Array([0]))
+  );
+  assertInstanceOf(
+    new Protocol({ ignoreUnregistered: true })
+      .deserializeClientbound(new Uint8Array([0])),
+    UnregisteredPacket,
+  );
 });
 
 Deno.test("packet with extra bytes", () => {

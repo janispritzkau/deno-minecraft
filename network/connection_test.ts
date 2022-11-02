@@ -4,19 +4,19 @@ import {
   assert,
   assertEquals,
   assertThrowsAsync,
-} from "https://deno.land/std/testing/asserts.ts";
+} from "https://deno.land/std@0.104.0/testing/asserts.ts";
 
-import { Connection } from "./connection.ts";
-import { PacketWriter } from "./packet.ts";
-
-const BUF_CAPACITY = 1024;
+import { Writer } from "../io/mod.ts";
+import { Packet } from "./packet.ts";
+import { Protocol } from "./protocol.ts";
+import { Connection, MAX_PACKET_LEN } from "./connection.ts";
 
 Deno.test("read zero packet length", async () => {
   const conn = fakeReaderConn((function* () {
     yield new Uint8Array([0]);
   })());
 
-  await assertThrowsAsync(() => conn.receive());
+  await assertThrowsAsync(() => conn.receiveRaw());
 });
 
 Deno.test("read invalid packet length", async () => {
@@ -27,49 +27,49 @@ Deno.test("read invalid packet length", async () => {
     gotToEnd = true;
   })());
 
-  await assertThrowsAsync(() => conn.receive());
+  await assertThrowsAsync(() => conn.receiveRaw());
   assert(!gotToEnd);
 });
 
 Deno.test("read packet too big", async () => {
   const conn = fakeReaderConn((function* () {
-    const len = new PacketWriter().writeVarInt(BUF_CAPACITY).bytes();
+    const len = new Writer().writeVarInt(MAX_PACKET_LEN).bytes();
     yield len;
-    yield new Uint8Array(BUF_CAPACITY - len.length);
+    yield new Uint8Array(MAX_PACKET_LEN - len.length);
   })());
 
-  await assertThrowsAsync(() => conn.receive());
+  await assertThrowsAsync(() => conn.receiveRaw());
 });
 
 Deno.test("read one packet with multiple read calls", async () => {
-  const buf = new Uint8Array(300).map((_, i) => i % 256);
+  const buf = new Uint8Array(256).map((_, i) => i % 256);
 
   const conn = fakeReaderConn((function* () {
-    const len = new PacketWriter().writeVarInt(300).bytes();
+    const len = new Writer().writeVarInt(256).bytes();
     yield len.slice(0, 1);
     yield len.slice(1, 2);
     yield buf.subarray(0, 50);
-    yield buf.subarray(50, 300);
+    yield buf.subarray(50, 256);
   })());
 
-  assertEquals(await conn.receive(), buf);
-  assertEquals(await conn.receive(), null);
+  assertEquals(await conn.receiveRaw(), buf);
+  assertEquals(await conn.receiveRaw(), null);
 });
 
 Deno.test("read multiple packets with one read call", async () => {
-  const a = new Uint8Array(100).fill(1);
-  const b = new Uint8Array(200).fill(2);
+  const a = new Uint8Array(4).fill(1);
+  const b = new Uint8Array(8).fill(2);
 
   const conn = fakeReaderConn((function* () {
-    yield new PacketWriter()
+    yield new Writer()
       .writeVarInt(a.length).write(a)
       .writeVarInt(b.length).write(b)
       .bytes();
   })());
 
-  assertEquals(await conn.receive(), a);
-  assertEquals(await conn.receive(), b);
-  assertEquals(await conn.receive(), null);
+  assertEquals(await conn.receiveRaw(), a);
+  assertEquals(await conn.receiveRaw(), b);
+  assertEquals(await conn.receiveRaw(), null);
 });
 
 Deno.test("write packet", async () => {
@@ -77,82 +77,93 @@ Deno.test("write packet", async () => {
   let writeBuf: Uint8Array | undefined;
 
   const conn = new Connection({
+    ...fakeConn,
     async write(buf) {
       timesCalledWrite++;
       writeBuf = buf;
       return buf.length;
     },
-    async read() {
-      return null;
-    },
-    close() {},
   });
 
-  await conn.send(new Uint8Array([0]));
+  await conn.sendRaw(new Uint8Array([0]));
   assertEquals(timesCalledWrite, 1);
   assertEquals(writeBuf, new Uint8Array([1, 0]));
 });
 
-Deno.test("write packet under compression threshold", async () => {
-  let timesCalledWrite = 0;
-  let writeBuf: Uint8Array | undefined;
+Deno.test("set protocol", async () => {
+  let timesServerHandlerCalled = 0;
+  let timesClientHandlerCalled = 0;
+
+  class ServerPacket implements Packet<void> {
+    static read() {
+      return new this();
+    }
+    write() {}
+    async handle() {
+      timesServerHandlerCalled++;
+    }
+  }
+
+  class ClientPacket implements Packet<void> {
+    static read() {
+      return new this();
+    }
+    write() {}
+    async handle() {
+      timesClientHandlerCalled++;
+    }
+  }
+
+  const protocol = new Protocol();
+  protocol.registerServerbound(0, ServerPacket);
+  protocol.registerClientbound(0, ClientPacket);
 
   const conn = new Connection({
-    async write(buf) {
-      timesCalledWrite++;
-      writeBuf = buf;
-      return buf.length;
+    ...fakeConn,
+    async read(buf) {
+      buf.set(new Uint8Array([1, 0]));
+      return 2;
     },
-    async read() {
-      return null;
-    },
-    close() {},
   });
 
-  conn.setCompression(128);
+  conn.setServerProtocol(protocol, {});
+  assert(await conn.receive() instanceof ServerPacket);
 
-  await conn.send(new Uint8Array([0]));
-  assertEquals(timesCalledWrite, 1);
-  assertEquals(writeBuf, new Uint8Array([2, 0, 0]));
+  conn.setClientProtocol(protocol, {});
+  assert(await conn.receive() instanceof ClientPacket);
+
+  assertEquals(timesServerHandlerCalled, 1);
+  assertEquals(timesClientHandlerCalled, 1);
 });
 
-Deno.test("write packet over compression threshold", async () => {
-  let timesCalledWrite = 0;
-  let writeBuf: Uint8Array | undefined;
+const fakeAddr: Deno.Addr = {
+  transport: "tcp",
+  hostname: "127.0.0.1",
+  port: 12345,
+};
 
-  const conn = new Connection({
-    async write(buf) {
-      timesCalledWrite++;
-      writeBuf = buf;
-      return buf.length;
-    },
-    async read() {
-      return null;
-    },
-    close() {},
-  });
-
-  conn.setCompression(128);
-
-  await conn.send(new Uint8Array(128));
-  assertEquals(timesCalledWrite, 1);
-  assertEquals(
-    writeBuf,
-    new Uint8Array([14, 128, 1, 120, 156, 99, 96, 24, 88, 0, 0, 0, 128, 0, 1]),
-  );
-});
+const fakeConn: Deno.Conn = {
+  rid: 0,
+  localAddr: fakeAddr,
+  remoteAddr: fakeAddr,
+  read: async () => null,
+  write: async () => 0,
+  closeWrite: async () => {},
+  close: async () => {},
+  readable: new ReadableStream(),
+  writable: new WritableStream(),
+};
 
 function fakeReaderConn(generator: Generator<Uint8Array>) {
-  return new Connection({
-    async write() {
-      return 0;
-    },
+  const conn = new Connection({
+    ...fakeConn,
     async read(buf) {
       const result = generator.next();
       if (result.done) return null;
       buf.set(result.value);
       return Promise.resolve(result.value.length);
     },
-    close() {},
-  }, BUF_CAPACITY);
+  });
+
+  return conn;
 }
