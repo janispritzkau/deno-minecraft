@@ -21,7 +21,7 @@ export class Connection {
     this.#conn = conn;
   }
 
-  setServerProtocol<Handler extends PacketHandler>(
+  setServerProtocol<Handler extends PacketHandler | void>(
     protocol: Protocol<Handler, unknown>,
     handler?: Handler,
   ) {
@@ -30,7 +30,7 @@ export class Connection {
     if (handler) this.#handler = handler;
   }
 
-  setClientProtocol<Handler extends PacketHandler>(
+  setClientProtocol<Handler extends PacketHandler | void>(
     protocol: Protocol<unknown, Handler>,
     handler?: Handler,
   ) {
