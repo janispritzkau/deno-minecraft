@@ -73,20 +73,17 @@ Deno.test("read multiple packets with one read call", async () => {
 });
 
 Deno.test("write packet", async () => {
-  let timesCalledWrite = 0;
-  let writeBuf: Uint8Array | undefined;
+  let writeBuf = new Uint8Array();
 
   const conn = new Connection({
     ...fakeConn,
     async write(buf) {
-      timesCalledWrite++;
-      writeBuf = buf;
+      writeBuf = new Uint8Array([...writeBuf, ...buf]);
       return buf.length;
     },
   });
 
   await conn.sendRaw(new Uint8Array([0]));
-  assertEquals(timesCalledWrite, 1);
   assertEquals(writeBuf, new Uint8Array([1, 0]));
 });
 
@@ -134,6 +131,43 @@ Deno.test("set protocol", async () => {
 
   assertEquals(timesServerHandlerCalled, 1);
   assertEquals(timesClientHandlerCalled, 1);
+});
+
+Deno.test("write packet under compression threshold", async () => {
+  let writeBuf = new Uint8Array();
+
+  const conn = new Connection({
+    ...fakeConn,
+    async write(buf) {
+      writeBuf = new Uint8Array([...writeBuf, ...buf]);
+      return buf.length;
+    },
+  });
+
+  conn.setCompressionThreshold(128);
+
+  await conn.sendRaw(new Uint8Array([0]));
+  assertEquals(writeBuf, new Uint8Array([2, 0, 0]));
+});
+
+Deno.test("write packet over compression threshold", async () => {
+  let writeBuf = new Uint8Array();
+
+  const conn = new Connection({
+    ...fakeConn,
+    async write(buf) {
+      writeBuf = new Uint8Array([...writeBuf, ...buf]);
+      return buf.length;
+    },
+  });
+
+  conn.setCompressionThreshold(128);
+
+  await conn.sendRaw(new Uint8Array(128));
+  assertEquals(
+    writeBuf,
+    new Uint8Array([14, 128, 1, 120, 156, 99, 96, 24, 88, 0, 0, 0, 128, 0, 1]),
+  );
 });
 
 const fakeAddr: Deno.Addr = {

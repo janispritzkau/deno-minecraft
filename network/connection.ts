@@ -1,4 +1,5 @@
-import { Reader, Writer } from "../io/mod.ts";
+import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
+import { getVarIntSize, Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
 
@@ -11,6 +12,7 @@ export class Connection {
   #serverbound = false;
   #protocol: Protocol<unknown, unknown> | null = null;
   #handler: PacketHandler | null = null;
+  #compressionThreshold: number | null = null;
 
   #buf = new Uint8Array(512);
   #len = 0;
@@ -39,6 +41,10 @@ export class Connection {
     if (handler) this.#handler = handler;
   }
 
+  setCompressionThreshold(threshold: number) {
+    if (threshold >= 0) this.#compressionThreshold = threshold;
+  }
+
   async send(packet: Packet<unknown>) {
     if (!this.#protocol) throw new Error("No protocol was set");
 
@@ -65,9 +71,25 @@ export class Connection {
   }
 
   async sendRaw(buf: Uint8Array) {
-    await this.#conn.write(
-      new Writer().writeVarInt(buf.byteLength).write(buf).bytes(),
-    );
+    if (this.#compressionThreshold) {
+      if (buf.byteLength < this.#compressionThreshold) {
+        await this.#conn.write(
+          new Writer().writeVarInt(buf.byteLength + 1).writeVarInt(0).bytes(),
+        );
+        await this.#conn.write(buf);
+      } else {
+        const compressedBuf = zlib.deflate(buf);
+        await this.#conn.write(
+          new Writer().writeVarInt(
+            compressedBuf.byteLength + getVarIntSize(buf.byteLength),
+          ).writeVarInt(buf.byteLength).bytes(),
+        );
+        await this.#conn.write(compressedBuf);
+      }
+    } else {
+      await this.#conn.write(new Writer().writeVarInt(buf.byteLength).bytes());
+      await this.#conn.write(buf);
+    }
   }
 
   async receiveRaw() {
@@ -115,7 +137,15 @@ export class Connection {
       if (packetEnd <= this.#len) {
         if (this.#len > packetEnd) this.#skipRead = true;
         this.#pos = packetEnd;
-        return this.#buf.subarray(reader.bytesRead(), packetEnd);
+
+        if (this.#compressionThreshold != null) {
+          const uncompressedSize = reader.readVarInt();
+          let packetBuf = this.#buf.subarray(reader.bytesRead(), packetEnd);
+          if (uncompressedSize != 0) packetBuf = zlib.inflate(packetBuf);
+          return packetBuf;
+        } else {
+          return this.#buf.subarray(reader.bytesRead(), packetEnd);
+        }
       }
     }
   }

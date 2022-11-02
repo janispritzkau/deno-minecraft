@@ -12,7 +12,7 @@ Functions and types for working with chat components. **Incomplete, types only**
 
 ### [`io/`](io/)
 
-Helper classes for writing and reading binary data. Includes a `Writer` and `Reader` class.
+Helper classes and functions for writing and reading binary data. Includes a `Writer` and `Reader` class.
 
 ### [`nbt/`](nbt/)
 
@@ -26,4 +26,6 @@ Implementation of NBT-Path is also planned.
 
 ### [`network/`](network/)
 
-Primitives for building clients and servers. This includes a `Connection` class which handles the framing of packets, and can be used in combination with a `Protocol` definition for the automatic encoding/decoding of packets. Only handshake and status protocols are included out-of-the-box yet.
+Primitives for building clients and servers. This includes a `Connection` class which handles the framing of packets, and can be used in combination with a `Protocol` definition for the automatic encoding/decoding of packets.
+
+Only handshake and status protocols are included out-of-the-box and no support for encryption yet.
