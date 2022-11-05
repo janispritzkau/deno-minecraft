@@ -2,10 +2,8 @@ import { Packet, PacketHandler, Protocol } from "../mod.ts";
 import { Reader, Writer } from "../../io/mod.ts";
 
 export interface ServerHandshakeHandler extends PacketHandler {
-  handleHandshake(packet: ServerHandshakePacket): Promise<void>;
+  handleHandshake(packet: ServerHandshakePacket): Promise<void> | void;
 }
-
-const handshakeProtocol = new Protocol<ServerHandshakeHandler, void>();
 
 export class ServerHandshakePacket implements Packet<ServerHandshakeHandler> {
   constructor(
@@ -37,6 +35,7 @@ export class ServerHandshakePacket implements Packet<ServerHandshakeHandler> {
   }
 }
 
+const handshakeProtocol = new Protocol<ServerHandshakeHandler, void>();
 handshakeProtocol.registerServerbound(0x00, ServerHandshakePacket);
 
 export default handshakeProtocol;

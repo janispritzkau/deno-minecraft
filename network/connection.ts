@@ -73,22 +73,22 @@ export class Connection {
   async sendRaw(buf: Uint8Array) {
     if (this.#compressionThreshold) {
       if (buf.byteLength < this.#compressionThreshold) {
-        await this.#conn.write(
+        await this.#write(
           new Writer().writeVarInt(buf.byteLength + 1).writeVarInt(0).bytes(),
         );
-        await this.#conn.write(buf);
+        await this.#write(buf);
       } else {
         const compressedBuf = zlib.deflate(buf);
-        await this.#conn.write(
+        await this.#write(
           new Writer().writeVarInt(
             compressedBuf.byteLength + getVarIntSize(buf.byteLength),
           ).writeVarInt(buf.byteLength).bytes(),
         );
-        await this.#conn.write(compressedBuf);
+        await this.#write(compressedBuf);
       }
     } else {
-      await this.#conn.write(new Writer().writeVarInt(buf.byteLength).bytes());
-      await this.#conn.write(buf);
+      await this.#write(new Writer().writeVarInt(buf.byteLength).bytes());
+      await this.#write(buf);
     }
   }
 
@@ -107,7 +107,7 @@ export class Connection {
         this.#growBuffer();
         const len = await this.#conn.read(this.#buf.subarray(this.#len));
         if (len == null) {
-          this.#closed = true;
+          this.close();
           return null;
         }
         this.#len += len;
@@ -151,8 +151,15 @@ export class Connection {
   }
 
   close() {
+    if (!this.#closed) this.#handler?.onDisconnect?.();
     this.#conn.close();
     this.#closed = true;
+  }
+
+  async #write(buf: Uint8Array) {
+    while (buf.length > 0) {
+      buf = buf.subarray(await this.#conn.write(buf));
+    }
   }
 
   #growBuffer() {

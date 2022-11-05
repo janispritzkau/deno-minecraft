@@ -1,11 +1,11 @@
 import { Reader, Writer } from "../io/mod.ts";
 
-export interface Packet<PacketHandler = unknown> {
+export interface Packet<Handler = void> {
   write(writer: Writer): void;
-  handle(handler: PacketHandler): Promise<void> | void;
+  handle(handler: Handler): Promise<void> | void;
 }
 
-export interface PacketConstructor<PacketHandler, P = Packet<PacketHandler>> {
+export interface PacketConstructor<P extends Packet<unknown>> {
   // deno-lint-ignore no-explicit-any
   new (...args: any[]): P;
   readonly name: string;

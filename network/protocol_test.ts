@@ -1,6 +1,5 @@
 import {
   assertEquals,
-  assertInstanceOf,
   assertThrows,
 } from "https://deno.land/std@0.161.0/testing/asserts.ts";
 
@@ -63,10 +62,10 @@ Deno.test("unregistered packet", () => {
   assertThrows(() =>
     new Protocol().deserializeClientbound(new Uint8Array([0]))
   );
-  assertInstanceOf(
+  assertEquals(
     new Protocol({ ignoreUnregistered: true })
-      .deserializeClientbound(new Uint8Array([0])),
-    UnregisteredPacket,
+      .deserializeClientbound(new Uint8Array([0, 1])),
+    new UnregisteredPacket(0, new Uint8Array([1])),
   );
 });
 

@@ -5,34 +5,34 @@ export interface ProtocolOptions {
   ignoreUnregistered?: boolean;
 }
 
-export class Protocol<ServerPacketHandler, ClientPacketHandler> {
-  #serverboundPackets = new PacketSet<ServerPacketHandler>();
-  #clientboundPackets = new PacketSet<ClientPacketHandler>();
+export class Protocol<ServerHandler = void, ClientHandler = void> {
+  #serverboundPackets = new PacketSet<ServerHandler>();
+  #clientboundPackets = new PacketSet<ClientHandler>();
   #ignoreUnregistered: boolean;
 
   constructor(options?: ProtocolOptions) {
-    this.#ignoreUnregistered ??= options?.ignoreUnregistered ?? false;
+    this.#ignoreUnregistered = options?.ignoreUnregistered ?? false;
   }
 
   registerServerbound(
     id: number,
-    constructor: PacketConstructor<ServerPacketHandler>,
+    constructor: PacketConstructor<Packet<ServerHandler>>,
   ) {
     this.#serverboundPackets.register(id, constructor);
   }
 
   registerClientbound(
     id: number,
-    constructor: PacketConstructor<ClientPacketHandler>,
+    constructor: PacketConstructor<Packet<ClientHandler>>,
   ) {
     this.#clientboundPackets.register(id, constructor);
   }
 
-  serializeServerbound(packet: Packet<ServerPacketHandler>) {
+  serializeServerbound(packet: Packet<ServerHandler>) {
     return this.#serverboundPackets.serialize(packet);
   }
 
-  serializeClientbound(packet: Packet<ClientPacketHandler>) {
+  serializeClientbound(packet: Packet<ClientHandler>) {
     return this.#clientboundPackets.serialize(packet);
   }
 
@@ -51,18 +51,18 @@ export class UnregisteredPacket implements Packet {
   async handle() {}
 }
 
-class PacketSet<PacketHandler> {
-  idToConstructor = new Map<number, PacketConstructor<PacketHandler>>();
-  constructorToId = new Map<PacketConstructor<PacketHandler>, number>();
+class PacketSet<Handler> {
+  idToConstructor = new Map<number, PacketConstructor<Packet<Handler>>>();
+  constructorToId = new Map<PacketConstructor<Packet<Handler>>, number>();
 
-  register(id: number, constructor: PacketConstructor<PacketHandler>) {
+  register(id: number, constructor: PacketConstructor<Packet<Handler>>) {
     this.idToConstructor.set(id, constructor);
     this.constructorToId.set(constructor, id);
   }
 
-  serialize(packet: Packet<PacketHandler>): Uint8Array {
+  serialize(packet: Packet<Handler>): Uint8Array {
     const id = this.constructorToId.get(
-      packet.constructor as PacketConstructor<PacketHandler>,
+      packet.constructor as PacketConstructor<Packet<Handler>>,
     );
 
     if (id == null) {
@@ -77,13 +77,15 @@ class PacketSet<PacketHandler> {
   deserialize(
     buf: Uint8Array,
     ignoreUnregistered = false,
-  ): Packet<PacketHandler> {
+  ): Packet<Handler> {
     const reader = new Reader(buf);
     const id = reader.readVarInt();
     const constructor = this.idToConstructor.get(id);
 
     if (!constructor) {
-      if (ignoreUnregistered) return new UnregisteredPacket(id, buf);
+      if (ignoreUnregistered) {
+        return new UnregisteredPacket(id, buf.subarray(reader.bytesRead()));
+      }
       throw new Error(`No packet registered with id ${id}`);
     }
 

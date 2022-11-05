@@ -1,20 +1,17 @@
 import { Packet, PacketHandler, Protocol } from "../mod.ts";
 import { Reader, Writer } from "../../io/mod.ts";
 
+type MaybePromise<T> = Promise<T> | void;
+
 export interface ServerStatusHandler extends PacketHandler {
-  handleRequest(): Promise<void>;
-  handlePing(ping: ServerStatusPingPacket): Promise<void>;
+  handleRequest?(): MaybePromise<void>;
+  handlePing?(packet: ServerStatusPingPacket): MaybePromise<void>;
 }
 
 export interface ClientStatusHandler extends PacketHandler {
-  handleResponse(): Promise<void>;
-  handlePong(pong: ClientStatusPongPacket): Promise<void>;
+  handleResponse?(packet: ClientStatusResponsePacket): MaybePromise<void>;
+  handlePong?(packet: ClientStatusPongPacket): MaybePromise<void>;
 }
-
-const statusProtocol = new Protocol<
-  ServerStatusHandler,
-  ClientStatusHandler
->();
 
 type ServerPacket = Packet<ServerStatusHandler>;
 type ClientPacket = Packet<ClientStatusHandler>;
@@ -26,8 +23,8 @@ export class ServerStatusRequestPacket implements ServerPacket {
 
   write() {}
 
-  async handle(handler: ServerStatusHandler) {
-    await handler.handleRequest();
+  handle(handler: ServerStatusHandler) {
+    return handler.handleRequest?.();
   }
 }
 
@@ -42,13 +39,10 @@ export class ServerStatusPingPacket implements ServerPacket {
     writer.writeLong(this.id);
   }
 
-  async handle(handler: ServerStatusHandler) {
-    await handler.handlePing(this);
+  handle(handler: ServerStatusHandler) {
+    return handler.handlePing?.(this);
   }
 }
-
-statusProtocol.registerServerbound(0x00, ServerStatusRequestPacket);
-statusProtocol.registerServerbound(0x01, ServerStatusPingPacket);
 
 export class ClientStatusResponsePacket implements ClientPacket {
   constructor(public status: unknown) {}
@@ -61,7 +55,9 @@ export class ClientStatusResponsePacket implements ClientPacket {
     writer.writeJSON(this.status);
   }
 
-  async handle() {}
+  handle(handler: ClientStatusHandler) {
+    return handler.handleResponse?.(this);
+  }
 }
 
 export class ClientStatusPongPacket implements ClientPacket {
@@ -75,8 +71,15 @@ export class ClientStatusPongPacket implements ClientPacket {
     writer.writeLong(this.id);
   }
 
-  async handle() {}
+  handle(handler: ClientStatusHandler) {
+    return handler.handlePong?.(this);
+  }
 }
+
+const statusProtocol = new Protocol<ServerStatusHandler, ClientStatusHandler>();
+
+statusProtocol.registerServerbound(0x00, ServerStatusRequestPacket);
+statusProtocol.registerServerbound(0x01, ServerStatusPingPacket);
 
 statusProtocol.registerClientbound(0x00, ClientStatusResponsePacket);
 statusProtocol.registerClientbound(0x01, ClientStatusPongPacket);
