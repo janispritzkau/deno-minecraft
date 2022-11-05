@@ -160,7 +160,7 @@ export class Connection {
         if (this.#len > packetEnd) this.#skipRead = true;
         this.#pos = packetEnd;
 
-        if (this.#compressionThreshold != null) {
+        if (this.#compressionThreshold >= 0) {
           const uncompressedSize = reader.readVarInt();
           let packetBuf = this.#buf.subarray(reader.bytesRead(), packetEnd);
           if (uncompressedSize != 0) packetBuf = zlib.inflate(packetBuf);
