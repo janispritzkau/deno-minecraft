@@ -1,19 +1,39 @@
 import {
   assert,
   assertEquals,
-  assertInstanceOf,
 } from "https://deno.land/std@0.161.0/testing/asserts.ts";
 
 import {
   ByteArrayTag,
+  ByteTag,
   CompoundTag,
+  DoubleTag,
+  FloatTag,
+  IntArrayTag,
   IntTag,
   ListTag,
   LongArrayTag,
+  LongTag,
   ShortTag,
   StringTag,
 } from "./tag.ts";
-import { equals, fromValue, toValue } from "./utils.ts";
+import { equals, unwrap, wrap } from "./utils.ts";
+
+const WRAPPED_TAGS = [
+  new ByteTag(1),
+  new ShortTag(2),
+  new IntTag(3),
+  new FloatTag(4),
+];
+
+const VALUE_TAGS = [
+  new LongTag(0n),
+  new DoubleTag(0),
+  new ByteArrayTag(new Uint8Array()),
+  new StringTag(""),
+  new IntArrayTag(new Int32Array()),
+  new LongArrayTag(new BigInt64Array()),
+];
 
 Deno.test("equals", () => {
   assert(equals(new IntTag(2), new IntTag(2)));
@@ -51,14 +71,58 @@ Deno.test("equals", () => {
   assert(!equals(new ListTag([new IntTag(0)]), new ListTag([])));
 });
 
-Deno.test("convert tag value", () => {
-  const tag = fromValue({
-    nested: {
-      list: [
-        { foo: new StringTag("bar") },
-      ],
-    },
-  });
-  assertInstanceOf(tag, CompoundTag);
-  assertEquals(toValue(tag).nested.list[0].foo, "bar");
+Deno.test("wrap tag", () => {
+  for (const x of WRAPPED_TAGS) {
+    assertEquals(wrap(x), x);
+  }
+
+  for (const x of VALUE_TAGS) {
+    assertEquals(wrap(x.valueOf()), x);
+  }
+
+  assertEquals(wrap(["hello"]), new ListTag([new StringTag("hello")]));
+
+  assertEquals(
+    wrap([{
+      foo: new ByteTag(-1),
+      bar: "baz",
+    }]),
+    new ListTag([
+      new CompoundTag({
+        foo: new ListTag([new ByteTag(-1)]),
+        bar: new StringTag("baz"),
+      }),
+    ]),
+  );
+});
+
+Deno.test("unwrap tag", () => {
+  for (const tag of WRAPPED_TAGS) {
+    assertEquals(unwrap(tag), tag);
+    assertEquals(unwrap(new ListTag([tag])), [tag]);
+  }
+
+  for (const tag of VALUE_TAGS) {
+    assertEquals(unwrap(tag), tag.valueOf());
+    assertEquals(unwrap(new ListTag([tag])), [tag.valueOf()]);
+  }
+
+  assertEquals(
+    unwrap(
+      new ListTag([
+        new CompoundTag({
+          foo: new ListTag([new ByteTag(-1)]),
+          bar: new StringTag("baz"),
+        }),
+      ]),
+    ),
+    [
+      {
+        foo: [new ByteTag(-1)],
+        bar: "baz",
+      },
+    ],
+  );
+
+  unwrap(new ListTag([new ByteArrayTag([]), new StringTag("")]));
 });

@@ -1,19 +1,19 @@
 import {
   ByteArrayTag,
-  ByteTag,
   CompoundTag,
   DoubleTag,
-  FloatTag,
   IntArrayTag,
-  IntTag,
   ListTag,
   LongArrayTag,
   LongTag,
-  ShortTag,
   StringTag,
   Tag,
 } from "./tag.ts";
+import { NO_UNWRAP } from "./_tag.ts";
 
+/**
+ * Checks if two tags are equal in value.
+ */
 export function equals(a: Tag, b: Tag): boolean {
   if (a.constructor != b.constructor) {
     return false;
@@ -42,38 +42,70 @@ export function equals(a: Tag, b: Tag): boolean {
 }
 
 /**
- * **UNSTABLE**
+ * Constructs tags by inferring the tag type from the value and wrapping it in
+ * a tag class. Object and array types are converted recursively.
  */
-// deno-lint-ignore no-explicit-any
-export function toValue(tag: Tag): any {
-  if (tag instanceof ListTag) return tag.valueOf().map(toValue);
-  if (
-    tag instanceof ByteTag || tag instanceof ShortTag ||
-    tag instanceof IntTag || tag instanceof FloatTag
-  ) return tag;
-  if (!(tag instanceof CompoundTag)) return tag.valueOf() as unknown;
-  const obj: Record<string, unknown> = {};
-  for (const [key, value] of tag.valueOf()) obj[key] = toValue(value);
-  return obj;
-}
-
-export function fromValue(value: unknown): Tag {
+export function wrap<T extends TagValue>(value: T): WrapValue<T>;
+export function wrap(value: TagValue): Tag {
   if (value instanceof Tag) return value;
-  if (value && value.constructor == Object) {
+  if (value instanceof Uint8Array) return new ByteArrayTag(value);
+  if (value instanceof Int32Array) return new IntArrayTag(value);
+  if (value instanceof BigInt64Array) return new LongArrayTag(value);
+  if (value instanceof Array) return new ListTag(value.map((x) => wrap(x)));
+  if (typeof value == "object" && value.constructor == Object) {
     const map = new Map<string, Tag>();
-    for (const k in <Record<string, unknown>> value) {
-      map.set(k, fromValue((value as Record<string, unknown>)[k]));
-    }
+    for (const key in value) map.set(key, wrap(value[key]));
     return new CompoundTag(map);
-  }
-  if (value instanceof Array) {
-    return new ListTag(value.map((x) => fromValue(x)));
   }
   if (typeof value == "string") return new StringTag(value);
   if (typeof value == "number") return new DoubleTag(value);
   if (typeof value == "bigint") return new LongTag(value);
-  if (value instanceof Uint8Array) return new ByteArrayTag(value);
-  if (value instanceof Int32Array) return new IntArrayTag(value);
-  if (value instanceof BigInt64Array) return new LongArrayTag(value);
   throw new Error("Invalid value");
 }
+
+/**
+ * Converts tags to a simpler representation using plain objects and arrays,
+ * unwrapping the inner tag value where possible.
+ */
+export function unwrap<T extends Tag>(tag: T): UnwrapTag<T>;
+export function unwrap(tag: Tag): UnwrapTag<Tag> {
+  if (tag[NO_UNWRAP]()) return tag;
+  if (tag instanceof ListTag) return tag.valueOf().map(unwrap);
+  if (!(tag instanceof CompoundTag)) return tag.valueOf() as unknown;
+  const obj: Record<string, unknown> = {};
+  for (const [key, value] of tag.valueOf()) obj[key] = unwrap(value);
+  return obj;
+}
+
+type TagValue =
+  | string
+  | number
+  | bigint
+  | Uint8Array
+  | Int32Array
+  | BigInt64Array
+  | Array<TagValue>
+  | CompoundValue
+  | Tag;
+
+interface CompoundValue {
+  [key: string]: TagValue;
+}
+
+type WrapValue<T> = T extends Tag ? T
+  : T extends Record<string, TagValue> ? CompoundTag
+  : T extends Array<infer V> ? ListTag<WrapValue<V>>
+  : T extends string ? StringTag
+  : T extends number ? DoubleTag
+  : T extends bigint ? LongTag
+  : T extends Uint8Array ? ByteArrayTag
+  : T extends Int32Array ? IntArrayTag
+  : T extends BigInt64Array ? LongArrayTag
+  : Tag;
+
+type UnwrapTag<T extends Tag> = ReturnType<T[typeof NO_UNWRAP]> extends true ? T
+  : UnwrapTagValueOf<ReturnType<T["valueOf"]>>;
+
+type UnwrapTagValueOf<T> = T extends Map<string, Tag> ? Record<string, unknown>
+  : T extends Array<infer V extends Tag> ? UnwrapTag<V>[]
+  : T;

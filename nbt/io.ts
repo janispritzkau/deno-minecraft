@@ -13,7 +13,7 @@ import {
   StringTag,
   Tag,
 } from "./tag.ts";
-import { IO_GET_ID, IO_WRITE } from "./_io.ts";
+import { IO_GET_ID, IO_WRITE } from "./_tag.ts";
 
 export function decodeCompoundTag(buf: Uint8Array): CompoundTag | null {
   return new TagReader(buf).readCompoundTag();

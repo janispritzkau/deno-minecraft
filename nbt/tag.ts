@@ -1,5 +1,5 @@
 import { TagWriter } from "./io.ts";
-import { IO_GET_ID, IO_WRITE } from "./_io.ts";
+import { IO_GET_ID, IO_WRITE, NO_UNWRAP } from "./_tag.ts";
 
 export abstract class Tag<T = unknown> {
   #value: T;
@@ -10,6 +10,10 @@ export abstract class Tag<T = unknown> {
 
   abstract [IO_GET_ID](): number;
   abstract [IO_WRITE](writer: TagWriter): void;
+
+  [NO_UNWRAP](): boolean {
+    return false;
+  }
 
   valueOf(): T {
     return this.#value;
@@ -46,6 +50,10 @@ export class ByteTag extends Tag<number> {
   [IO_WRITE](writer: TagWriter) {
     writer.writeByte(this.valueOf());
   }
+
+  [NO_UNWRAP](): true {
+    return true;
+  }
 }
 
 export class ShortTag extends Tag<number> {
@@ -60,6 +68,10 @@ export class ShortTag extends Tag<number> {
   [IO_WRITE](writer: TagWriter) {
     writer.writeShort(this.valueOf());
   }
+
+  [NO_UNWRAP](): true {
+    return true;
+  }
 }
 
 export class IntTag extends Tag<number> {
@@ -73,6 +85,10 @@ export class IntTag extends Tag<number> {
 
   [IO_WRITE](writer: TagWriter) {
     writer.writeInt(this.valueOf());
+  }
+
+  [NO_UNWRAP](): true {
+    return true;
   }
 }
 
@@ -97,6 +113,10 @@ export class FloatTag extends Tag<number> {
 
   [IO_WRITE](writer: TagWriter) {
     writer.writeFloat(this.valueOf());
+  }
+
+  [NO_UNWRAP](): true {
+    return true;
   }
 }
 
