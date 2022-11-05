@@ -65,15 +65,8 @@ Deno.test("compound tag", () => {
   assertEquals(
     new CompoundTag({
       foo: new ListTag([new ListTag([new StringTag("bar")])]),
-    })
-      .getList("foo", ListTag),
-    [[new StringTag("bar")]],
-  );
-
-  assertEquals(
-    new CompoundTag({ list: new ListTag([new IntTag(1)]) })
-      .getListTag("list", IntTag),
-    new ListTag([new IntTag(1)]),
+    }).getList("foo", ListTag),
+    [new ListTag([new StringTag("bar")])],
   );
 
   const compound = new CompoundTag()
@@ -99,7 +92,7 @@ Deno.test("compound tag", () => {
   assertEquals(compound.getDouble("Double"), 1);
   assertEquals(compound.getByteArray("ByteArray"), new Uint8Array([1]));
   assertEquals(compound.getString("String"), "hello");
-  assertEquals(compound.getList("List", ByteTag), [-1]);
+  assertEquals(compound.getList("List", ByteTag), [new ByteTag(-1)]);
   assertEquals(compound.getCompoundTag("Compound"), new CompoundTag());
   assertEquals(compound.getIntArray("IntArray"), new Int32Array([1]));
   assertEquals(compound.getLongArray("LongArray"), new BigInt64Array([1n]));

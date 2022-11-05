@@ -1,3 +1,9 @@
+/**
+ * Utilites for network and file IO utilized by other modules.
+ *
+ * @module
+ */
+
 export { Reader } from "./reader.ts";
 export { Writer } from "./writer.ts";
 

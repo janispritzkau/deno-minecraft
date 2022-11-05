@@ -2,9 +2,20 @@ import { Packet, PacketConstructor } from "./packet.ts";
 import { Reader, Writer } from "../io/mod.ts";
 
 export interface ProtocolOptions {
+  /**
+   * When set to `true`, unknown packet types will result in a
+   * {@linkcode UnregisteredPacket} during deserialization, otherwise an error
+   * is thrown.
+   *
+   * @default false
+   */
   ignoreUnregistered?: boolean;
 }
 
+/**
+ * Defines a set of server- and client-bound packets related to a specific
+ * connection protocol state.
+ */
 export class Protocol<ServerHandler = void, ClientHandler = void> {
   #serverboundPackets = new PacketSet<ServerHandler>();
   #clientboundPackets = new PacketSet<ClientHandler>();
@@ -45,8 +56,21 @@ export class Protocol<ServerHandler = void, ClientHandler = void> {
   }
 }
 
+/**
+ * Auxiliary class for packets that could not be deserialized because they
+ * are not registered in {@linkcode Protocol}.
+ */
 export class UnregisteredPacket implements Packet {
-  constructor(public id: number, public buf: Uint8Array) {}
+  /** ID of packet which is not registered. */
+  id: number;
+  /** The unserialized contents of the packet. */
+  buf: Uint8Array;
+
+  constructor(id: number, buf: Uint8Array) {
+    this.id = id;
+    this.buf = buf;
+  }
+
   async write() {}
   async handle() {}
 }

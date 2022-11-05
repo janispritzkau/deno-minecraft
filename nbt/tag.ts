@@ -310,19 +310,14 @@ export class CompoundTag extends Tag<Map<string, Tag>> {
     return this.#getTag(key, StringTag)?.valueOf();
   }
 
-  getList<T extends Tag>(key: string, tagType: TagConstructor<T>) {
+  getList<T extends Tag>(
+    key: string,
+    tagType: TagConstructor<T>,
+  ): T[] | null {
     const list = this.#getTag(key, ListTag)?.valueOf();
     if (list == null) return null;
     for (const tag of list) ensureTagType(tag, tagType);
-    return list.map((tag) => tag.valueOf() as TagValue<T>);
-  }
-
-  getListTag<T extends Tag>(key: string, tagType: TagConstructor<T>) {
-    const tag = this.#getTag(key, ListTag);
-    const list = tag?.valueOf();
-    if (list == null) return null;
-    for (const tag of list) ensureTagType(tag, tagType);
-    return tag as ListTag<T>;
+    return list as T[];
   }
 
   getCompoundTag(key: string) {

@@ -6,14 +6,23 @@ import { Aes128Cfb8 } from "./_encryption.ts";
 
 export const MAX_PACKET_LEN = 1024 * 2048 - 1;
 
+/**
+ * Represets the client or server end of a connection.
+ *
+ * It handles packet framing, compression, encryption, and serialization of
+ * packets when a protocol is specified.
+ *
+ * To create a connection, use the `Deno.connect` and `Deno.listen` functions
+ * to obtain a `Deno.Conn` and use the constructor to create a new {@linkcode Connection}.
+ */
 export class Connection {
   #conn: Deno.Conn;
   #closed = false;
 
-  #serverbound = false;
+  #isServer = false;
   #protocol: Protocol<unknown, unknown> | null = null;
   #handler: PacketHandler | null = null;
-  #compressionThreshold: number | null = null;
+  #compressionThreshold = -1;
   #cipher: Aes128Cfb8 | null = null;
   #decipher: Aes128Cfb8 | null = null;
 
@@ -30,7 +39,7 @@ export class Connection {
     protocol: Protocol<Handler, unknown>,
     handler?: Handler,
   ) {
-    this.#serverbound = true;
+    this.#isServer = true;
     this.#protocol = protocol;
     if (handler) this.#handler = handler;
   }
@@ -39,13 +48,13 @@ export class Connection {
     protocol: Protocol<unknown, Handler>,
     handler?: Handler,
   ) {
-    this.#serverbound = false;
+    this.#isServer = false;
     this.#protocol = protocol;
     if (handler) this.#handler = handler;
   }
 
   setCompressionThreshold(threshold: number) {
-    if (threshold >= 0) this.#compressionThreshold = threshold;
+    this.#compressionThreshold = threshold;
   }
 
   setEncryption(key: Uint8Array) {
@@ -57,7 +66,7 @@ export class Connection {
     if (!this.#protocol) throw new Error("No protocol was set");
 
     await this.sendRaw(
-      this.#serverbound
+      this.#isServer
         ? this.#protocol.serializeClientbound(packet)
         : this.#protocol.serializeServerbound(packet),
     );
@@ -69,7 +78,7 @@ export class Connection {
     const buf = await this.receiveRaw();
     if (!buf) return null;
 
-    const packet = this.#serverbound
+    const packet = this.#isServer
       ? this.#protocol.deserializeServerbound(buf)
       : this.#protocol.deserializeClientbound(buf);
 
@@ -79,7 +88,7 @@ export class Connection {
   }
 
   async sendRaw(buf: Uint8Array) {
-    if (this.#compressionThreshold) {
+    if (this.#compressionThreshold >= 0) {
       if (buf.byteLength < this.#compressionThreshold) {
         await this.#write(
           new Writer().writeVarInt(buf.byteLength + 1).writeVarInt(0).bytes(),
@@ -164,8 +173,8 @@ export class Connection {
   }
 
   close() {
-    if (!this.#closed) this.#handler?.onDisconnect?.();
     this.#conn.close();
+    if (!this.#closed) this.#handler?.onDisconnect?.();
     this.#closed = true;
   }
 
