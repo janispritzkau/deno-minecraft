@@ -1,5 +1,7 @@
 # Deno Minecraft
 
+[![Package link](https://deno.land/badge/minecraft_lib/version)](https://deno.land/x/minecraft_lib)
+
 A collection of modules that can be used to build Minecraft servers, clients, utilities and other tools.
 
 Emphasis is on usability, ease of use, and having well-written tests to improve reliability and correctness.
