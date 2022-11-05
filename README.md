@@ -28,4 +28,4 @@ Implementation of NBT-Path is also planned.
 
 Primitives for building clients and servers. This includes a `Connection` class which handles the framing of packets, and can be used in combination with a `Protocol` definition for the automatic encoding/decoding of packets.
 
-Only handshake and status protocols are included out-of-the-box and no support for encryption yet.
+Only handshake and status protocols are included out-of-the-box

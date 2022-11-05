@@ -138,6 +138,21 @@ Deno.test("write packet over compression threshold", async () => {
   );
 });
 
+Deno.test("encryption", async () => {
+  const buffer = new Buffer();
+  const key = new Uint8Array(16).fill(7);
+  const testData = new Uint8Array([127, 2, 0]);
+
+  const clientConn = new Connection(mockConnBuffer(buffer));
+  clientConn.setEncryption(key);
+  await clientConn.sendRaw(testData.slice());
+  assertEquals(buffer.bytes(), new Uint8Array([216, 149, 158, 37]));
+
+  const serverConn = new Connection(mockConnBuffer(buffer));
+  serverConn.setEncryption(key);
+  assertEquals(await serverConn.receiveRaw(), testData);
+});
+
 function mockConnBuffer(buffer: Buffer) {
   return mockConn({
     write: (p) => buffer.write(p),

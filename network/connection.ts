@@ -2,6 +2,7 @@ import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
 import { getVarIntSize, Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
+import { Aes128Cfb8 } from "./_encryption.ts";
 
 export const MAX_PACKET_LEN = 1024 * 2048 - 1;
 
@@ -13,6 +14,8 @@ export class Connection {
   #protocol: Protocol<unknown, unknown> | null = null;
   #handler: PacketHandler | null = null;
   #compressionThreshold: number | null = null;
+  #cipher: Aes128Cfb8 | null = null;
+  #decipher: Aes128Cfb8 | null = null;
 
   #buf = new Uint8Array(512);
   #len = 0;
@@ -43,6 +46,11 @@ export class Connection {
 
   setCompressionThreshold(threshold: number) {
     if (threshold >= 0) this.#compressionThreshold = threshold;
+  }
+
+  setEncryption(key: Uint8Array) {
+    this.#cipher = new Aes128Cfb8(key, key);
+    this.#decipher = new Aes128Cfb8(key, key);
   }
 
   async send(packet: Packet<unknown>) {
@@ -110,6 +118,11 @@ export class Connection {
           this.close();
           return null;
         }
+        if (this.#decipher) {
+          this.#decipher.decrypt(
+            this.#buf.subarray(this.#len, this.#len + len),
+          );
+        }
         this.#len += len;
       }
 
@@ -157,6 +170,7 @@ export class Connection {
   }
 
   async #write(buf: Uint8Array) {
+    if (this.#cipher) this.#cipher.encrypt(buf);
     while (buf.length > 0) {
       buf = buf.subarray(await this.#conn.write(buf));
     }
