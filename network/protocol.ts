@@ -39,19 +39,19 @@ export class Protocol<ServerHandler = void, ClientHandler = void> {
     this.#clientboundPackets.register(id, constructor);
   }
 
-  serializeServerbound(packet: Packet<ServerHandler>) {
+  serializeServerbound(packet: Packet<ServerHandler>): Uint8Array {
     return this.#serverboundPackets.serialize(packet);
   }
 
-  serializeClientbound(packet: Packet<ClientHandler>) {
+  serializeClientbound(packet: Packet<ClientHandler>): Uint8Array {
     return this.#clientboundPackets.serialize(packet);
   }
 
-  deserializeServerbound(buf: Uint8Array) {
+  deserializeServerbound(buf: Uint8Array): Packet<ServerHandler> {
     return this.#serverboundPackets.deserialize(buf, this.#ignoreUnregistered);
   }
 
-  deserializeClientbound(buf: Uint8Array) {
+  deserializeClientbound(buf: Uint8Array): Packet<ClientHandler> {
     return this.#clientboundPackets.deserialize(buf, this.#ignoreUnregistered);
   }
 }

@@ -145,7 +145,7 @@ export class ByteArrayTag extends Tag<Uint8Array> {
     writer.writeByteArray(this.valueOf());
   }
 
-  toList() {
+  toList(): ByteTag[] {
     const list: ByteTag[] = [];
     for (const value of this.valueOf()) list.push(new ByteTag(value));
     return list;
@@ -199,40 +199,40 @@ export class CompoundTag extends Tag<Map<string, Tag>> {
     writer.writeCompound(this.valueOf());
   }
 
-  set(key: string, tag: Tag) {
+  set(key: string, tag: Tag): this {
     this.valueOf().set(key, tag);
     return this;
   }
 
-  setByte(key: string, value: number) {
+  setByte(key: string, value: number): this {
     return this.set(key, new ByteTag(value));
   }
 
-  setShort(key: string, value: number) {
+  setShort(key: string, value: number): this {
     return this.set(key, new ShortTag(value));
   }
 
-  setInt(key: string, value: number) {
+  setInt(key: string, value: number): this {
     return this.set(key, new IntTag(value));
   }
 
-  setLong(key: string, value: bigint) {
+  setLong(key: string, value: bigint): this {
     return this.set(key, new LongTag(value));
   }
 
-  setFloat(key: string, value: number) {
+  setFloat(key: string, value: number): this {
     return this.set(key, new FloatTag(value));
   }
 
-  setDouble(key: string, value: number) {
+  setDouble(key: string, value: number): this {
     return this.set(key, new DoubleTag(value));
   }
 
-  setByteArray(key: string, value: Uint8Array) {
+  setByteArray(key: string, value: Uint8Array): this {
     return this.set(key, new ByteArrayTag(value));
   }
 
-  setString(key: string, value: string) {
+  setString(key: string, value: string): this {
     return this.set(key, new StringTag(value));
   }
 
@@ -262,91 +262,91 @@ export class CompoundTag extends Tag<Map<string, Tag>> {
     return this.set(key, new CompoundTag(value));
   }
 
-  setIntArray(key: string, value: Int32Array) {
+  setIntArray(key: string, value: Int32Array): this {
     return this.set(key, new IntArrayTag(value));
   }
 
-  setLongArray(key: string, value: BigInt64Array) {
+  setLongArray(key: string, value: BigInt64Array): this {
     return this.set(key, new LongArrayTag(value));
   }
 
-  setBoolean(key: string, value: boolean) {
+  setBoolean(key: string, value: boolean): this {
     return this.setByte(key, Number(value));
   }
 
-  get(key: string) {
+  get(key: string): Tag | undefined {
     return this.valueOf().get(key);
   }
 
-  getByte(key: string) {
+  getByte(key: string): number | undefined {
     return this.#getTag(key, ByteTag)?.valueOf();
   }
 
-  getShort(key: string) {
+  getShort(key: string): number | undefined {
     return this.#getTag(key, ShortTag)?.valueOf();
   }
 
-  getInt(key: string) {
+  getInt(key: string): number | undefined {
     return this.#getTag(key, IntTag)?.valueOf();
   }
 
-  getLong(key: string) {
+  getLong(key: string): bigint | undefined {
     return this.#getTag(key, LongTag)?.valueOf();
   }
 
-  getFloat(key: string) {
+  getFloat(key: string): number | undefined {
     return this.#getTag(key, FloatTag)?.valueOf();
   }
 
-  getDouble(key: string) {
+  getDouble(key: string): number | undefined {
     return this.#getTag(key, DoubleTag)?.valueOf();
   }
 
-  getByteArray(key: string) {
+  getByteArray(key: string): Uint8Array | undefined {
     return this.#getTag(key, ByteArrayTag)?.valueOf();
   }
 
-  getString(key: string) {
+  getString(key: string): string | undefined {
     return this.#getTag(key, StringTag)?.valueOf();
   }
 
   getList<T extends Tag>(
     key: string,
     tagType: TagConstructor<T>,
-  ): T[] | null {
+  ): T[] | undefined {
     const list = this.#getTag(key, ListTag)?.valueOf();
-    if (list == null) return null;
+    if (list == null) return undefined;
     for (const tag of list) ensureTagType(tag, tagType);
     return list as T[];
   }
 
-  getCompoundTag(key: string) {
+  getCompoundTag(key: string): CompoundTag | undefined {
     return this.#getTag(key, CompoundTag);
   }
 
-  getIntArray(key: string) {
+  getIntArray(key: string): Int32Array | undefined {
     return this.#getTag(key, IntArrayTag)?.valueOf();
   }
 
-  getLongArray(key: string) {
+  getLongArray(key: string): BigInt64Array | undefined {
     return this.#getTag(key, LongArrayTag)?.valueOf();
   }
 
-  getBoolean(key: string) {
-    return Boolean(this.getByte(key));
+  getBoolean(key: string): boolean | undefined {
+    if (!this.has(key)) return undefined;
+    return this.getByte(key)! != 0;
   }
 
-  has(key: string) {
-    this.valueOf().entries;
+  has(key: string): boolean {
     return this.valueOf().has(key);
   }
 
   #getTag<T extends Tag>(
     key: string,
     constructor: TagConstructor<T>,
-  ): T | null {
+  ): T | undefined {
     const tag = this.get(key);
-    if (tag == null) return null;
+    if (tag == null) return undefined;
     return ensureTagType(tag, constructor);
   }
 }
@@ -366,7 +366,7 @@ export class IntArrayTag extends Tag<Int32Array> {
     writer.writeIntArray(this.valueOf());
   }
 
-  toList() {
+  toList(): IntTag[] {
     const list: IntTag[] = [];
     for (const value of this.valueOf()) list.push(new IntTag(value));
     return list;
@@ -388,7 +388,7 @@ export class LongArrayTag extends Tag<BigInt64Array> {
     writer.writeLongArray(this.valueOf());
   }
 
-  toList() {
+  toList(): LongTag[] {
     const list: LongTag[] = [];
     for (const value of this.valueOf()) list.push(new LongTag(value));
     return list;

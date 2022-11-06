@@ -4,108 +4,108 @@ export class Writer {
   #pos = 0;
   #textEncoder = new TextEncoder();
 
-  constructor(buf = new Uint8Array(16)) {
+  constructor(buf: Uint8Array = new Uint8Array(16)) {
     this.#buf = buf;
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
-  bytes() {
+  bytes(): Uint8Array {
     return this.#buf.subarray(0, this.#pos);
   }
 
-  writeByte(x: number) {
+  writeByte(x: number): this {
     this.grow(1);
     this.#view.setInt8(this.#pos, x);
     this.#pos += 1;
-    return this
+    return this;
   }
 
-  writeUnsignedByte(x: number) {
+  writeUnsignedByte(x: number): this {
     this.grow(1);
     this.#view.setUint8(this.#pos, x);
     this.#pos += 1;
-    return this
+    return this;
   }
 
-  writeShort(x: number) {
+  writeShort(x: number): this {
     this.grow(2);
     this.#view.setInt16(this.#pos, x);
     this.#pos += 2;
-    return this
+    return this;
   }
 
-  writeUnsignedShort(x: number) {
+  writeUnsignedShort(x: number): this {
     this.grow(2);
     this.#view.setUint16(this.#pos, x);
     this.#pos += 2;
-    return this
+    return this;
   }
 
-  writeInt(x: number) {
+  writeInt(x: number): this {
     this.grow(4);
     this.#view.setInt32(this.#pos, x);
     this.#pos += 4;
-    return this
+    return this;
   }
 
-  writeUnsignedInt(x: number) {
+  writeUnsignedInt(x: number): this {
     this.grow(4);
     this.#view.setUint32(this.#pos, x);
     this.#pos += 4;
-    return this
+    return this;
   }
 
-  writeLong(x: bigint) {
+  writeLong(x: bigint): this {
     this.grow(8);
     this.#view.setBigInt64(this.#pos, x);
     this.#pos += 8;
-    return this
+    return this;
   }
 
-  writeUnsignedLong(x: bigint) {
+  writeUnsignedLong(x: bigint): this {
     this.grow(8);
     this.#view.setBigUint64(this.#pos, x);
     this.#pos += 8;
-    return this
+    return this;
   }
 
-  writeFloat(x: number) {
+  writeFloat(x: number): this {
     this.grow(4);
     this.#view.setFloat32(this.#pos, x);
     this.#pos += 4;
-    return this
+    return this;
   }
 
-  writeDouble(x: number) {
+  writeDouble(x: number): this {
     this.grow(8);
     this.#view.setFloat64(this.#pos, x);
     this.#pos += 8;
-    return this
+    return this;
   }
 
-  writeBoolean(x: boolean) {
+  writeBoolean(x: boolean): this {
     return this.writeByte(Number(x));
   }
 
-  write(buf: Uint8Array) {
+  write(buf: Uint8Array): this {
     this.grow(buf.byteLength);
     this.#buf.set(buf, this.#pos);
     this.#pos += buf.byteLength;
     return this;
   }
 
-  writeString(text: string) {
+  writeString(text: string): this {
     const buf = this.#textEncoder.encode(text);
     this.writeVarInt(buf.byteLength);
     this.write(buf);
     return this;
   }
 
-  writeJSON(value: unknown) {
+  writeJSON(value: unknown): this {
     return this.writeString(JSON.stringify(value));
   }
 
-  writeVarInt(x: number) {
+  writeVarInt(x: number): this {
     do {
       let b = x & 0x7f;
       x >>>= 7;
@@ -115,7 +115,7 @@ export class Writer {
     return this;
   }
 
-  writeVarLong(x: bigint) {
+  writeVarLong(x: bigint): this {
     x = BigInt.asUintN(64, x);
     do {
       let b = x & 0x7fn;

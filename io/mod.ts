@@ -7,7 +7,7 @@
 export { Reader } from "./reader.ts";
 export { Writer } from "./writer.ts";
 
-export function getVarIntSize(x: number) {
+export function getVarIntSize(x: number): number {
   let n = 0;
   do {
     x >>>= 7;

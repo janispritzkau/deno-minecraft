@@ -53,16 +53,31 @@ export class Connection {
     if (handler) this.#handler = handler;
   }
 
+  /**
+   * Sets the compression threshold value. Negative values disable compression.
+   *
+   * If the value is set to a non-negative number, the packet format is changed
+   * and all packets larger than the threshold in bytes are compressed.
+   */
   setCompressionThreshold(threshold: number) {
     this.#compressionThreshold = threshold;
   }
 
+  /**
+   * Enables encryption using the AES-128-CFB8 cipher and initializes it
+   * with the specified key.
+   */
   setEncryption(key: Uint8Array) {
     this.#cipher = new Aes128Cfb8(key, key);
     this.#decipher = new Aes128Cfb8(key, key);
   }
 
-  async send(packet: Packet<unknown>) {
+  /**
+   * Sends a packet and serializes it using the previously specified protocol.
+   *
+   * If no protocol is set, this method will throw an exception.
+   */
+  async send(packet: Packet<unknown>): Promise<void> {
     if (!this.#protocol) throw new Error("No protocol was set");
 
     await this.sendRaw(
@@ -72,7 +87,18 @@ export class Connection {
     );
   }
 
-  async receive() {
+  /**
+   * Receives and deserializes a packet using the previously specified protocol.
+   *
+   * When a packet handler is specified with the protocol, the
+   * {@linkcode Packet.handle} method will be called.
+   *
+   * If no protocol is set, this method will throw an exception.
+   *
+   * Once there are no more packets to read, e.g. because the connection has
+   * been closed, this method returns a `null` value.
+   */
+  async receive(): Promise<Packet | null> {
     if (!this.#protocol) throw new Error("No protocol was set");
 
     const buf = await this.receiveRaw();
@@ -87,7 +113,7 @@ export class Connection {
     return packet;
   }
 
-  async sendRaw(buf: Uint8Array) {
+  async sendRaw(buf: Uint8Array): Promise<void> {
     if (this.#compressionThreshold >= 0) {
       if (buf.byteLength < this.#compressionThreshold) {
         await this.#write(
@@ -109,7 +135,7 @@ export class Connection {
     }
   }
 
-  async receiveRaw() {
+  async receiveRaw(): Promise<Uint8Array | null> {
     if (this.#closed) return null;
 
     if (this.#pos > 0) {
@@ -172,6 +198,10 @@ export class Connection {
     }
   }
 
+  /**
+   * Closes the underlying `Deno.Conn` and calls {@linkcode PacketHandler.onDisconnect}
+   * on the packet handler, if specified with the protocol.
+   */
   close() {
     this.#conn.close();
     if (!this.#closed) this.#handler?.onDisconnect?.();

@@ -36,59 +36,59 @@ export class TagReader {
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
-  bytesRead() {
+  bytesRead(): number {
     return this.#pos;
   }
 
-  readByte() {
+  readByte(): number {
     const x = this.#view.getInt8(this.#pos);
     this.#pos += 1;
     return x;
   }
 
-  readShort() {
+  readShort(): number {
     const x = this.#view.getInt16(this.#pos);
     this.#pos += 2;
     return x;
   }
 
-  readInt() {
+  readInt(): number {
     const x = this.#view.getInt32(this.#pos);
     this.#pos += 4;
     return x;
   }
 
-  readLong() {
+  readLong(): bigint {
     const x = this.#view.getBigInt64(this.#pos);
     this.#pos += 8;
     return x;
   }
 
-  readFloat() {
+  readFloat(): number {
     const x = this.#view.getFloat32(this.#pos);
     this.#pos += 4;
     return x;
   }
 
-  readDouble() {
+  readDouble(): number {
     const x = this.#view.getFloat64(this.#pos);
     this.#pos += 8;
     return x;
   }
 
-  readByteArray() {
+  readByteArray(): Uint8Array {
     const len = this.readInt();
     return this.#buf.subarray(this.#pos, this.#pos += len);
   }
 
-  readString() {
+  readString(): string {
     const len = this.readShort();
     return this.#textDecoder.decode(
       this.#buf.subarray(this.#pos, this.#pos += len),
     );
   }
 
-  readList() {
+  readList(): Tag[] {
     const id = this.readByte();
     const len = this.readInt();
     const list: Tag[] = [];
@@ -96,7 +96,7 @@ export class TagReader {
     return list;
   }
 
-  readCompound() {
+  readCompound(): Map<string, Tag> {
     const map = new Map<string, Tag>();
     while (true) {
       const id = this.readByte();
@@ -107,14 +107,14 @@ export class TagReader {
     return map;
   }
 
-  readIntArray() {
+  readIntArray(): Int32Array {
     const len = this.readInt();
     const array = new Int32Array(len);
     for (let i = 0; i < len; i++) array[i] = this.readInt();
     return array;
   }
 
-  readLongArray() {
+  readLongArray(): BigInt64Array {
     const len = this.readInt();
     const array = new BigInt64Array(len);
     for (let i = 0; i < len; i++) array[i] = this.readLong();
@@ -152,7 +152,7 @@ export class TagReader {
     }
   }
 
-  readCompoundTag() {
+  readCompoundTag(): CompoundTag | null {
     const id = this.readByte();
     if (id == 0) return null;
     if (id != 10) throw new Error("Root tag must be a compound tag");
@@ -168,13 +168,13 @@ export class TagWriter {
   #view: DataView;
   #pos = 0;
 
-  constructor(buf = new Uint8Array(16), start = 0) {
+  constructor(buf: Uint8Array = new Uint8Array(16), start: number = 0) {
     this.#buf = buf;
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
     this.#pos = start;
   }
 
-  bytes() {
+  bytes(): Uint8Array {
     return this.#buf.subarray(0, this.#pos);
   }
 

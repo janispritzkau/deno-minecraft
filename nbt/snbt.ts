@@ -47,7 +47,7 @@ export function stringify(tag: Tag): string {
   throw new Error("Invalid tag");
 }
 
-export function parse(text: string) {
+export function parse(text: string): Tag {
   const parser = new TagParser(text);
   return parser.parseTag();
 }
