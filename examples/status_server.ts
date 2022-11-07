@@ -28,8 +28,7 @@ for await (const denoConn of listener) {
     }
   })().catch((e) => {
     console.log("error in receive loop:", e);
-  }).finally(() => {
-    conn.close();
+    if (!conn.closed) conn.close();
   });
 }
 
@@ -42,8 +41,10 @@ function createHandshakeHandler(conn: Connection): ServerHandshakeHandler {
           createStatusHandler(conn),
         );
       } else if (packet.nextState == 2) {
+        await conn.receiveRaw(); // wait for login start packet
         await conn.sendRaw(
-          new Writer().writeVarInt(0x00).writeJSON("Login not implemented!")
+          new Writer().writeVarInt(0)
+            .writeJSON({ text: "Login not implemented!" })
             .bytes(),
         );
       }

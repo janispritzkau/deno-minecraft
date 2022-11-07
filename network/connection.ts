@@ -1,10 +1,10 @@
 import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
-import { getVarIntSize, Reader, Writer } from "../io/mod.ts";
+import { Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
 import { Aes128Cfb8 } from "./_encryption.ts";
 
-export const MAX_PACKET_LEN = 1024 * 2048 - 1;
+const MAX_PACKET_LEN = (1 << 21) - 1;
 
 /**
  * Represets the client or server end of a connection.
@@ -27,12 +27,15 @@ export class Connection {
   #decipher: Aes128Cfb8 | null = null;
 
   #buf = new Uint8Array(512);
-  #len = 0;
-  #pos = 0;
-  #skipRead = false;
+  #writePos = 0;
+  #readPos = 0;
 
   constructor(conn: Deno.Conn) {
     this.#conn = conn;
+  }
+
+  get closed() {
+    return this.#closed;
   }
 
   setServerProtocol<Handler extends PacketHandler | void>(
@@ -114,62 +117,70 @@ export class Connection {
   }
 
   async sendRaw(buf: Uint8Array): Promise<void> {
+    let len = 0;
+    const chunks: Uint8Array[] = [];
     if (this.#compressionThreshold >= 0) {
       if (buf.byteLength < this.#compressionThreshold) {
-        await this.#write(
-          new Writer().writeVarInt(buf.byteLength + 1).writeVarInt(0).bytes(),
-        );
-        await this.#write(buf);
+        len = buf.byteLength + 1;
+        chunks.push(new Writer().writeVarInt(0).bytes(), buf);
       } else {
         const compressedBuf = zlib.deflate(buf);
-        await this.#write(
-          new Writer().writeVarInt(
-            compressedBuf.byteLength + getVarIntSize(buf.byteLength),
-          ).writeVarInt(buf.byteLength).bytes(),
-        );
-        await this.#write(compressedBuf);
+        const lenBuf = new Writer().writeVarInt(buf.byteLength).bytes();
+        len = lenBuf.byteLength + compressedBuf.byteLength;
+        chunks.push(lenBuf, compressedBuf);
       }
     } else {
-      await this.#write(new Writer().writeVarInt(buf.byteLength).bytes());
-      await this.#write(buf);
+      len = buf.byteLength;
+      chunks.push(buf);
     }
+    if (len > MAX_PACKET_LEN) throw new Error("Packet is too large");
+    await this.#write(new Writer().writeVarInt(len).bytes());
+    for (const chunk of chunks) await this.#write(chunk);
   }
 
   async receiveRaw(): Promise<Uint8Array | null> {
     if (this.#closed) return null;
 
-    if (this.#pos > 0) {
+    if (this.#readPos > 0) {
       // copy unread bytes to the front
-      this.#buf.copyWithin(0, this.#pos, this.#len);
-      this.#len -= this.#pos;
-      this.#pos = 0;
+      this.#buf.copyWithin(0, this.#readPos, this.#writePos);
+      this.#writePos -= this.#readPos;
+      this.#readPos = 0;
     }
 
+    let skipRead = this.#readPos < this.#writePos;
     while (true) {
-      if (!this.#skipRead) {
-        this.#growBuffer();
-        const len = await this.#conn.read(this.#buf.subarray(this.#len));
+      if (!skipRead) {
+        if (this.#writePos == this.#buf.byteLength) {
+          const buf = this.#buf.subarray(0, this.#writePos);
+          this.#buf = new Uint8Array(this.#buf.byteLength * 2);
+          this.#buf.set(buf);
+        }
+
+        const len = await this.#conn.read(this.#buf.subarray(this.#writePos));
         if (len == null) {
           this.close();
           return null;
         }
+
         if (this.#decipher) {
           this.#decipher.decrypt(
-            this.#buf.subarray(this.#len, this.#len + len),
+            this.#buf.subarray(this.#writePos, this.#writePos + len),
           );
         }
-        this.#len += len;
+
+        this.#writePos += len;
       }
 
-      this.#skipRead = false;
-      const reader = new Reader(this.#buf.subarray(0, this.#len));
+      skipRead = false;
+      const reader = new Reader(this.#buf.subarray(0, this.#writePos));
 
       let packetLen: number;
       try {
         packetLen = reader.readVarInt();
       } catch (e) {
-        if (this.#len >= 5) throw e;
-        continue; // more bytes needed
+        if (reader.bytesRead() >= 3) throw e;
+        continue;
       }
 
       if (packetLen == 0) {
@@ -177,23 +188,25 @@ export class Connection {
       }
 
       if (packetLen > MAX_PACKET_LEN) {
-        throw new Error("Packet too large");
+        throw new Error("Packet is too large");
       }
 
       const packetEnd = reader.bytesRead() + packetLen;
 
-      if (packetEnd <= this.#len) {
-        if (this.#len > packetEnd) this.#skipRead = true;
-        this.#pos = packetEnd;
+      if (packetEnd <= this.#writePos) {
+        this.#readPos = packetEnd;
 
-        if (this.#compressionThreshold >= 0) {
-          const uncompressedSize = reader.readVarInt();
-          let packetBuf = this.#buf.subarray(reader.bytesRead(), packetEnd);
-          if (uncompressedSize != 0) packetBuf = zlib.inflate(packetBuf);
-          return packetBuf;
-        } else {
+        if (this.#compressionThreshold < 0) {
           return this.#buf.subarray(reader.bytesRead(), packetEnd);
         }
+
+        const uncompressedSize = reader.readVarInt();
+        const packetBuf = this.#buf.subarray(reader.bytesRead(), packetEnd);
+
+        if (uncompressedSize == 0) return packetBuf;
+        if (uncompressedSize < this.#compressionThreshold) {
+          throw new Error("Packet length is below compression threshold");
+        } else return zlib.inflate(packetBuf);
       }
     }
   }
@@ -204,7 +217,7 @@ export class Connection {
    */
   close() {
     this.#conn.close();
-    if (!this.#closed) this.#handler?.onDisconnect?.();
+    this.#handler?.onDisconnect?.();
     this.#closed = true;
   }
 
@@ -213,12 +226,5 @@ export class Connection {
     while (buf.length > 0) {
       buf = buf.subarray(await this.#conn.write(buf));
     }
-  }
-
-  #growBuffer() {
-    if (this.#len < this.#buf.byteLength) return;
-    const readBytes = this.#buf.subarray(0, this.#len);
-    this.#buf = new Uint8Array(this.#buf.byteLength * 2);
-    this.#buf.set(readBytes);
   }
 }

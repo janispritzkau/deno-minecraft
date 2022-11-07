@@ -17,10 +17,14 @@ Deno.test("read zero packet length", async () => {
 });
 
 Deno.test("read invalid packet length", async () => {
-  const conn = new Connection(
-    mockConnBuffer(new Buffer([255, 255, 255, 255, 255])),
-  );
-  await assertRejects(() => conn.receiveRaw());
+  const buffer = new Buffer();
+  const mockedConn = mockConnBuffer(buffer);
+
+  buffer.writeSync(new Writer().writeVarInt(1 << 21).bytes());
+  await assertRejects(() => new Connection(mockedConn).receiveRaw());
+
+  buffer.writeSync(new Writer().writeVarInt((1 << 21) - 1).bytes());
+  assertEquals(await new Connection(mockedConn).receiveRaw(), null);
 });
 
 Deno.test("read one packet with multiple read calls", async () => {
@@ -69,6 +73,25 @@ Deno.test("write packet", async () => {
 
   await conn.sendRaw(new Uint8Array([0]));
   assertEquals(buffer.bytes(), new Uint8Array([1, 0]));
+});
+
+Deno.test("write large packet", async () => {
+  const packet = new Uint8Array(1 << 21);
+  let bytesWritten = 0;
+
+  const conn = new Connection(mockConn({
+    write: (p) => {
+      bytesWritten += p.length;
+      return Promise.resolve(p.length);
+    },
+  }));
+
+  await conn.sendRaw(packet.subarray(0, -1));
+  assertEquals(bytesWritten, packet.length + 2);
+
+  bytesWritten = 0;
+  await assertRejects(() => conn.sendRaw(packet));
+  assertEquals(bytesWritten, 0);
 });
 
 Deno.test("set protocol", async () => {
@@ -153,10 +176,10 @@ Deno.test("encryption", async () => {
   assertEquals(await serverConn.receiveRaw(), testData);
 });
 
-function mockConnBuffer(buffer: Buffer) {
+function mockConnBuffer(buffer: Buffer, chunkLen = Infinity) {
   return mockConn({
-    write: (p) => buffer.write(p),
-    read: (p) => buffer.read(p),
+    write: (p) => buffer.write(p.subarray(0, chunkLen)),
+    read: (p) => buffer.read(p.subarray(0, chunkLen)),
   });
 }
 
