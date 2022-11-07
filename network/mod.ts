@@ -84,3 +84,4 @@
 export * from "./packet.ts";
 export * from "./protocol.ts";
 export { Connection } from "./connection.ts";
+export * from "./utils.ts";
