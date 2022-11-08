@@ -1,11 +1,14 @@
 // import { RSA } from "https://deno.land/x/god_crypto@v1.4.10/rsa.ts";
 import { RSA } from "https://raw.githubusercontent.com/janispritzkau/god_crypto/fix-rsa-decrypt-error/rsa.ts";
 
+/**
+ * Generates a hash used for authentication with the Mojang session server.
+ */
 export async function hashServerId(
   serverId: Uint8Array,
   secret: Uint8Array,
   publicKey: Uint8Array,
-) {
+): Promise<string> {
   const hash = await crypto.subtle.digest(
     "SHA-1",
     new Uint8Array([...serverId, ...secret, ...publicKey]),
@@ -16,12 +19,24 @@ export async function hashServerId(
   ).toString(16);
 }
 
-export async function publicEncrypt(publicKey: Uint8Array, data: Uint8Array) {
+/**
+ * Encrypts data with the public key using the RSA algorithm with PKCS1 padding.
+ */
+export async function publicEncrypt(
+  publicKey: Uint8Array,
+  data: Uint8Array,
+): Promise<Uint8Array> {
   const rsa = new RSA(importRsaKey(publicKey, "PUBLIC"));
   return new Uint8Array((await rsa.encrypt(data, { padding: "pkcs1" })).buffer);
 }
 
-export async function privateDecrypt(privateKey: Uint8Array, data: Uint8Array) {
+/**
+ * Decrypts data with the private key using the RSA algorithm with PKCS1 padding.
+ */
+export async function privateDecrypt(
+  privateKey: Uint8Array,
+  data: Uint8Array,
+): Promise<Uint8Array> {
   const rsa = new RSA(importRsaKey(privateKey, "PRIVATE"));
   return new Uint8Array((await rsa.decrypt(data, { padding: "pkcs1" })).buffer);
 }
@@ -31,6 +46,9 @@ export interface KeyPair {
   publicKey: Uint8Array;
 }
 
+/**
+ * Generates an RSA key pair for the encryption setup of a Minecraft server.
+ */
 export async function generateKeyPair(): Promise<KeyPair> {
   const keyPair = await crypto.subtle.generateKey(
     {
