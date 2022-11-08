@@ -4,13 +4,17 @@
 
 A collection of modules that can be used to build Minecraft servers, clients, utilities and other tools.
 
-Emphasis is on usability, ease of use, and having well-written tests to improve reliability and correctness.
+Emphasis is on usability, ease of use, and having well-written tests to improve reliability and correctness. This library is focused solely on Minecraft Java Edition.
 
 ## Modules
 
+### [`auth/`](https://deno.land/x/minecraft_lib/auth/)
+
+Helper functions for authentication via Microsoft accounts and obtaining access tokens.
+
 ### [`chat/`](https://deno.land/x/minecraft_lib/chat/)
 
-Functions and types for working with chat components. **Incomplete, types only**.
+Functions and types for working with chat components. **Mostly incomplete**.
 
 ### [`io/`](https://deno.land/x/minecraft_lib/io/)
 
@@ -30,4 +34,4 @@ Implementation of NBT-Path is also planned.
 
 Primitives for building clients and servers. This includes a `Connection` class which handles the framing of packets, and can be used in combination with a `Protocol` definition for the automatic encoding/decoding of packets.
 
-Only handshake and status protocols are included out-of-the-box
+Only handshake and status protocols are included out-of-the-box.
