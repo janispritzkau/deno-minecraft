@@ -12,11 +12,12 @@
  * @module
  */
 
-const XBOX_AUTH_URL = "https://user.auth.xboxlive.com/user/authenticate";
-const XSTS_AUTH_URL = "https://xsts.auth.xboxlive.com/xsts/authorize";
-const MINECRAFT_SERVICES_URL = "https://api.minecraftservices.com";
-const MINECRAFT_XBOX_LOGIN_URL =
-  `${MINECRAFT_SERVICES_URL}/authentication/login_with_xbox`;
+import {
+  MINECRAFT_XBOX_LOGIN_URL,
+  XBOX_AUTH_URL,
+  XBOX_LIVE_ERRORS,
+  XSTS_AUTH_URL,
+} from "./_consts.ts";
 
 export interface MinecraftToken {
   /** The token used to authenticate and join Minecraft servers. */
@@ -82,7 +83,7 @@ async function getXboxLiveToken(oauthToken: string): Promise<XboxLiveResponse> {
 
   if (!response.ok) {
     throw new Error(
-      `Could not get xbox live token (http status ${response.status})`,
+      `Could not get xbox live token (http status code ${response.status})`,
     );
   }
 
@@ -106,9 +107,19 @@ async function getXstsToken(xboxLiveToken: string): Promise<XboxLiveResponse> {
     }),
   });
 
+  if (response.status == 401) {
+    const json = await response.json();
+    const message = XBOX_LIVE_ERRORS[json.XErr];
+    throw new Error(
+      message
+        ? `Xbox Live authentication failed: ${message}`
+        : `Xbox Live authentication failed (XErr:${json.XErr})`,
+    );
+  }
+
   if (!response.ok) {
     throw new Error(
-      `Could not get xsts token (http status ${response.status})`,
+      `Could not get xsts token (http status code ${response.status})`,
     );
   }
 
