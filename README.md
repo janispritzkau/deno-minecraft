@@ -2,23 +2,23 @@
 
 [![Package link](https://deno.land/badge/minecraft_lib/version)](https://deno.land/x/minecraft_lib)
 
-A collection of modules that can be used to build Minecraft servers, clients, utilities and other tools.
+A collection of modules that can be used to build Minecraft servers, clients, utilities and other tools. This library focuses solely on Minecraft Java Edition.
 
-Emphasis is on usability, ease of use, and having well-written tests to improve reliability and correctness. This library is focused solely on Minecraft Java Edition.
+The emphasis is on usability, ease of use and on being well tested to improve reliability and correctness.
 
 ## Modules
 
 ### [`auth/`](https://deno.land/x/minecraft_lib/auth/)
 
-Helper functions for authentication via Microsoft accounts and obtaining access tokens.
+This module provides a preconfigured OAuth client that supports the authorization code and device code flow, as well as refreshing of access tokens, used for Microsoft account authentication. The module also includes a helper function to obtain the Minecraft access token via Xbox Live services.
 
 ### [`chat/`](https://deno.land/x/minecraft_lib/chat/)
 
-Functions and types for working with chat components. **Mostly incomplete**.
+Utilities for working with chat components. **Mostly incomplete**.
 
 ### [`io/`](https://deno.land/x/minecraft_lib/io/)
 
-Helper classes and functions for writing and reading binary data. Includes a `Writer` and `Reader` class.
+Helper classes and functions for writing and reading binary data used for network or file IO. These include the `Writer` and `Reader` classes.
 
 ### [`nbt/`](https://deno.land/x/minecraft_lib/nbt/)
 
