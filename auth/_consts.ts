@@ -1,11 +1,19 @@
-export const XBOX_AUTH_URL = "https://user.auth.xboxlive.com/user/authenticate";
-export const XSTS_AUTH_URL = "https://xsts.auth.xboxlive.com/xsts/authorize";
-export const MINECRAFT_XBOX_LOGIN_URL =
+export const OAUTH_TOKEN_ENDPOINT = "https://login.live.com/oauth20_token.srf";
+export const OAUTH_AUTHORIZATION_ENDPOINT =
+  "https://login.live.com/oauth20_authorize.srf";
+export const OAUTH_DEVICE_AUTHORIZATION_ENDPOINT =
+  "https://login.live.com/oauth20_connect.srf";
+
+export const OAUTH_REDIRECT_URI = "https://login.live.com/oauth20_desktop.srf";
+export const OAUTH_CLIENT_ID = "00000000402b5328";
+export const OAUTH_SCOPE = "XboxLive.signin offline_access";
+
+export const XBL_ENDPOINT = "https://user.auth.xboxlive.com/user/authenticate";
+export const XSTS_ENDPOINT = "https://xsts.auth.xboxlive.com/xsts/authorize";
+export const MINECRAFT_XBOX_LOGIN_ENDPOINT =
   "https://api.minecraftservices.com/authentication/login_with_xbox";
 
-// error messages copied from:
 // https://github.com/PrismarineJS/prismarine-auth/blob/bca4a9238414d25f08de21bc656b8b9d1bddce7a/src/common/Constants.js
-
 export const XBOX_LIVE_ERRORS: Record<string, string> = {
   2148916227:
     "Your account was banned by Xbox for violating one or more Community Standards for Xbox and is unable to be used.",
