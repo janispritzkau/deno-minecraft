@@ -48,11 +48,11 @@ export class ClientStatusResponsePacket implements ClientPacket {
   constructor(public status: unknown) {}
 
   static read(reader: Reader) {
-    return new this(reader.readJSON());
+    return new this(reader.readJson());
   }
 
   write(writer: Writer) {
-    writer.writeJSON(this.status);
+    writer.writeJson(this.status);
   }
 
   handle(handler: ClientStatusHandler) {

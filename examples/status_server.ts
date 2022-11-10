@@ -1,3 +1,4 @@
+import * as flags from "https://deno.land/std@0.161.0/flags/mod.ts";
 import { Writer } from "../io/writer.ts";
 import { Connection } from "../network/connection.ts";
 
@@ -11,12 +12,18 @@ import statusProtocol, {
   ServerStatusHandler,
 } from "../network/protocol/status.ts";
 
-const listener = Deno.listen({ hostname: "127.0.0.1", port: 25565 });
+const args = flags.parse(Deno.args, {
+  string: ["hostname", "port"],
+  default: { hostname: "127.0.0.1", port: 25565 },
+});
+
+const hostname = args.hostname;
+const port = Number(args.port);
+const listener = Deno.listen({ hostname, port });
+
+console.log(`server listening on ${hostname}:${port}`);
 
 for await (const denoConn of listener) {
-  const addr = <Deno.NetAddr> denoConn.remoteAddr;
-  console.log(`new connection ${addr.hostname}:${addr.port}`);
-
   const conn = new Connection(denoConn);
   conn.setServerProtocol(handshakeProtocol, createHandshakeHandler(conn));
 
@@ -44,7 +51,7 @@ function createHandshakeHandler(conn: Connection): ServerHandshakeHandler {
         await conn.receiveRaw(); // wait for login start packet
         await conn.sendRaw(
           new Writer().writeVarInt(0)
-            .writeJSON({ text: "Login not implemented!" })
+            .writeJson({ text: "Login not implemented!" })
             .bytes(),
         );
       }

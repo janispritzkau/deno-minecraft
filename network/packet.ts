@@ -13,11 +13,11 @@ import { Reader, Writer } from "../io/mod.ts";
  *   constructor(public status: unknown) {}
  *
  *   static read(reader: Reader) {
- *     return new this(reader.readJSON());
+ *     return new this(reader.readJson());
  *   }
  *
  *   write(writer: Writer) {
- *     writer.writeJSON(this.status);
+ *     writer.writeJson(this.status);
  *   }
  *
  *   handle(handler: ClientStatusHandler) {
@@ -26,7 +26,7 @@ import { Reader, Writer } from "../io/mod.ts";
  * }
  * ```
  */
-export interface Packet<Handler = void> {
+export interface Packet<Handler = unknown> {
   write(writer: Writer): void;
   /**
    * Gets called on {@linkcode Connection.receive} when a protocol and

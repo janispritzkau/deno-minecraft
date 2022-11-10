@@ -32,7 +32,7 @@ export interface ResolvedAddress {
  *
  * May perform a DNS lookup if the specified hostname is a domain name and no port is specified.
  */
-export async function resolveAddress(
+export async function resolveServerAddress(
   hostname: string,
   port?: number,
 ): Promise<ResolvedAddress> {
@@ -54,7 +54,7 @@ export async function resolveAddress(
       "SRV",
     );
     if (record == null) return { hostname, port: DEFAULT_PORT };
-    return { hostname: record.target, port: record.port };
+    return { hostname: record.target.replace(/\.$/, ""), port: record.port };
   } catch {
     return { hostname, port: DEFAULT_PORT };
   }

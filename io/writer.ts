@@ -1,12 +1,16 @@
+import { CompoundTag } from "../nbt/tag.ts";
+import { TagWriter } from "../nbt/io.ts";
+
 export class Writer {
   #buf: Uint8Array;
   #view: DataView;
-  #pos = 0;
+  #pos: number;
   #textEncoder = new TextEncoder();
 
-  constructor(buf: Uint8Array = new Uint8Array(16)) {
+  constructor(buf: Uint8Array = new Uint8Array(16), pos = 0) {
     this.#buf = buf;
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    this.#pos = pos;
   }
 
   bytes(): Uint8Array {
@@ -101,8 +105,13 @@ export class Writer {
     return this;
   }
 
-  writeJSON(value: unknown): this {
+  writeJson(value: unknown): this {
     return this.writeString(JSON.stringify(value));
+  }
+
+  writeUuid(uuid: string): this {
+    const x = BigInt(`0x${uuid.replaceAll("-", "")}`);
+    return this.writeLong(x >> 64n).writeLong(BigInt.asUintN(64, x));
   }
 
   writeVarInt(x: number): this {
@@ -126,12 +135,65 @@ export class Writer {
     return this;
   }
 
+  writeByteArray(array: Uint8Array): this {
+    this.writeVarInt(array.length);
+    this.write(array);
+    return this;
+  }
+
+  writeIntArray(array: Int32Array): this {
+    this.writeVarInt(array.length);
+    for (const x of array) this.writeInt(x);
+    return this;
+  }
+
+  writeLongArray(array: BigInt64Array): this {
+    this.writeVarInt(array.length);
+    for (const x of array) this.writeLong(x);
+    return this;
+  }
+
+  writeCompoundTag(tag: CompoundTag) {
+    const writer = new TagWriter(this.#buf, this.#pos);
+    writer.writeCompoundTag(tag);
+    const bytes = writer.bytes();
+    this.#buf = new Uint8Array(bytes.buffer, bytes.byteOffset);
+    this.#view = new DataView(bytes.buffer, bytes.byteOffset);
+    this.#pos = writer.pos;
+    return this;
+  }
+
+  writeOptional<T>(
+    value: T | null | undefined,
+    writeFn: (this: this, x: T) => void,
+  ): this {
+    this.writeBoolean(value != null);
+    if (value != null) writeFn.call(this, value);
+    return this;
+  }
+
+  writeList<T>(
+    items: T[] | Iterable<T>,
+    writeFn: (this: this, item: T) => void,
+  ): this {
+    const list = items instanceof Array ? items : [...items];
+    this.writeVarInt(list.length);
+    for (const item of list) writeFn.call(this, item);
+    return this;
+  }
+
   grow(length: number) {
-    const capacity = this.#buf.byteLength;
+    const capacity = this.#buf.buffer.byteLength;
+
+    if (this.#buf.byteOffset + this.#buf.byteLength < capacity) {
+      this.#buf = new Uint8Array(this.#buf.buffer, this.#buf.byteOffset);
+    }
+
     if (this.#pos + length <= capacity) return;
-    const old = this.#buf;
-    this.#buf = new Uint8Array(capacity * 2 + length);
-    this.#buf.set(old);
+
+    const buf = this.#buf;
+    this.#buf = new Uint8Array(buf.byteLength * 2 + length);
+    this.#buf.set(buf);
     this.#view = new DataView(this.#buf.buffer);
   }
 }

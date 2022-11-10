@@ -36,7 +36,7 @@ export class TagReader {
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
-  bytesRead(): number {
+  get bytesRead(): number {
     return this.#pos;
   }
 
@@ -166,12 +166,16 @@ export class TagWriter {
   #textEncoder = new TextEncoder();
   #buf: Uint8Array;
   #view: DataView;
-  #pos = 0;
+  #pos: number;
 
-  constructor(buf: Uint8Array = new Uint8Array(16), start: number = 0) {
+  constructor(buf: Uint8Array = new Uint8Array(16), pos = 0) {
     this.#buf = buf;
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-    this.#pos = start;
+    this.#pos = pos;
+  }
+
+  get pos(): number {
+    return this.#pos;
   }
 
   bytes(): Uint8Array {

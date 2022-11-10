@@ -1,3 +1,6 @@
+import { CompoundTag } from "../nbt/tag.ts";
+import { TagReader } from "../nbt/io.ts";
+
 export class Reader {
   #buf: Uint8Array;
   #view: DataView;
@@ -9,11 +12,11 @@ export class Reader {
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
-  bytesRead(): number {
+  get bytesRead(): number {
     return this.#pos;
   }
 
-  unreadBytes(): number {
+  get unreadBytes(): number {
     return this.#buf.byteLength - this.#pos;
   }
 
@@ -88,14 +91,25 @@ export class Reader {
     return this.#buf.subarray(this.#pos, this.#pos += length);
   }
 
+  readToEnd(): Uint8Array {
+    return this.read(this.unreadBytes);
+  }
+
   readString(maxLength?: number): string {
     const len = this.readVarInt();
     if (maxLength && len > maxLength) throw new Error("String is too long");
     return this.#textDecoder.decode(this.read(len));
   }
 
-  readJSON(maxLength?: number): unknown {
+  readJson(maxLength?: number): unknown {
     return JSON.parse(this.readString(maxLength));
+  }
+
+  readUuid(): string {
+    return (
+      this.readUnsignedLong() << 64n |
+      this.readUnsignedLong()
+    ).toString(16).padStart(32, "0");
   }
 
   readVarInt(): number {
@@ -118,17 +132,41 @@ export class Reader {
     return BigInt.asIntN(64, x);
   }
 
+  readByteArray(): Uint8Array {
+    const length = this.readVarInt();
+    return this.read(length);
+  }
+
   readIntArray(): Int32Array {
-    const len = this.readInt();
-    const array = new Int32Array(len);
-    for (let i = 0; i < len; i++) array[i] = this.readInt();
+    const length = this.readVarInt();
+    const array = new Int32Array(length);
+    for (let i = 0; i < length; i++) array[i] = this.readInt();
     return array;
   }
 
   readLongArray(): BigInt64Array {
-    const len = this.readInt();
-    const array = new BigInt64Array(len);
-    for (let i = 0; i < len; i++) array[i] = this.readLong();
+    const length = this.readVarInt();
+    const array = new BigInt64Array(length);
+    for (let i = 0; i < length; i++) array[i] = this.readLong();
     return array;
+  }
+
+  readCompoundTag(): CompoundTag | null {
+    const reader = new TagReader(this.#buf.subarray(this.#pos));
+    const tag = reader.readCompoundTag();
+    this.#pos += reader.bytesRead;
+    return tag;
+  }
+
+  readOptional<T>(readFn: (reader: Reader) => T): T | null {
+    return this.readBoolean() ? readFn.call(this, this) : null;
+  }
+
+  readList<T>(readFn: (reader: Reader) => T): T[] {
+    return [...this.readListIterable(readFn)];
+  }
+
+  *readListIterable<T>(readFn: (reader: Reader) => T): Iterable<T> {
+    for (let i = this.readVarInt(); i--;) yield readFn.call(this, this);
   }
 }

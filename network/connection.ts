@@ -179,7 +179,7 @@ export class Connection {
       try {
         packetLen = reader.readVarInt();
       } catch (e) {
-        if (reader.bytesRead() >= 3) throw e;
+        if (reader.bytesRead >= 3) throw e;
         continue;
       }
 
@@ -191,17 +191,17 @@ export class Connection {
         throw new Error("Packet is too large");
       }
 
-      const packetEnd = reader.bytesRead() + packetLen;
+      const packetEnd = reader.bytesRead + packetLen;
 
       if (packetEnd <= this.#writePos) {
         this.#readPos = packetEnd;
 
         if (this.#compressionThreshold < 0) {
-          return this.#buf.subarray(reader.bytesRead(), packetEnd);
+          return this.#buf.subarray(reader.bytesRead, packetEnd);
         }
 
         const uncompressedSize = reader.readVarInt();
-        const packetBuf = this.#buf.subarray(reader.bytesRead(), packetEnd);
+        const packetBuf = this.#buf.subarray(reader.bytesRead, packetEnd);
 
         if (uncompressedSize == 0) return packetBuf;
         if (uncompressedSize < this.#compressionThreshold) {

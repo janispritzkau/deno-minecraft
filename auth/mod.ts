@@ -44,9 +44,6 @@ export interface MinecraftAccessToken {
 /**
  * Retrieves the Minecraft access token via Xbox Live services using the
  * provided Microsoft OAuth token.
- *
- * The intermediately generated Xbox Live tokens are very short-lived,
- * so there is little point in caching them.
  */
 export async function fetchMinecraftAccessToken(
   oauthToken: string,

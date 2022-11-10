@@ -41,7 +41,7 @@
  * console.log(response.status);
  * ```
  *
- * ### Handshake packet handler server example
+ * ### Handshake packet handler example
  *
  * ```ts
  * import { Writer } from "https://deno.land/x/minecraft_lib/io/mod.ts";
@@ -57,7 +57,7 @@
  *         // return conn.setServerProtocol(statusProtocol, statusHandler);
  *       } else if (packet.nextState == 2) {
  *         await conn.sendRaw(
- *           new Writer().writeVarInt(0x00).writeJSON("Login not implemented!")
+ *           new Writer().writeVarInt(0x00).writeJson("Login not implemented!")
  *             .bytes(),
  *         );
  *       }

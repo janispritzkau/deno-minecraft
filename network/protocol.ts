@@ -108,13 +108,13 @@ class PacketSet<Handler> {
 
     if (!constructor) {
       if (ignoreUnregistered) {
-        return new UnregisteredPacket(id, buf.subarray(reader.bytesRead()));
+        return new UnregisteredPacket(id, buf.subarray(reader.bytesRead));
       }
       throw new Error(`No packet registered with id ${id}`);
     }
 
     const packet = constructor.read(reader);
-    const unreadBytes = buf.byteLength - reader.bytesRead();
+    const unreadBytes = buf.byteLength - reader.bytesRead;
 
     if (unreadBytes > 0) {
       throw new Error(
