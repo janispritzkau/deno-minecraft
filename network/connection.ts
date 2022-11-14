@@ -1,8 +1,8 @@
 import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
+import { Aes128Cfb8 } from "../crypto/aes.ts";
 import { Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
-import { Aes128Cfb8 } from "./_encryption.ts";
 
 const MAX_PACKET_LEN = (1 << 21) - 1;
 
