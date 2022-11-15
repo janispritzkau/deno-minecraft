@@ -54,14 +54,14 @@ export async function importRsaPrivateKey(
   const jwk = await crypto.subtle.exportKey("jwk", privateKey);
   const n = base64url.decode(jwk.n!);
   return {
-    n: bufToInt(n),
-    e: bufToInt(base64url.decode(jwk.e!)),
-    d: bufToInt(base64url.decode(jwk.d!)),
-    p: bufToInt(base64url.decode(jwk.p!)),
-    q: bufToInt(base64url.decode(jwk.q!)),
-    dp: bufToInt(base64url.decode(jwk.dp!)),
-    dq: bufToInt(base64url.decode(jwk.dq!)),
-    qi: bufToInt(base64url.decode(jwk.qi!)),
+    n: bigIntFromBuf(n),
+    e: bigIntFromBuf(base64url.decode(jwk.e!)),
+    d: bigIntFromBuf(base64url.decode(jwk.d!)),
+    p: bigIntFromBuf(base64url.decode(jwk.p!)),
+    q: bigIntFromBuf(base64url.decode(jwk.q!)),
+    dp: bigIntFromBuf(base64url.decode(jwk.dp!)),
+    dq: bigIntFromBuf(base64url.decode(jwk.dq!)),
+    qi: bigIntFromBuf(base64url.decode(jwk.qi!)),
     length: n.length,
     signingKey: privateKey,
   };
@@ -79,8 +79,8 @@ export async function importRsaPublicKey(
   const jwk = await crypto.subtle.exportKey("jwk", publicKey);
   const n = base64url.decode(jwk.n!);
   return {
-    n: bufToInt(n),
-    e: bufToInt(base64url.decode(jwk.e!)),
+    n: bigIntFromBuf(n),
+    e: bigIntFromBuf(base64url.decode(jwk.e!)),
     length: n.length,
     verifyKey: publicKey,
   };
@@ -89,43 +89,17 @@ export async function importRsaPublicKey(
 export async function exportRsaPrivateKey(
   privateKey: RsaPrivateKey,
 ): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey(
-    "jwk",
-    {
-      kty: "RSA",
-      alg: "RS1",
-      d: base64url.encode(intToBuf(privateKey.d)),
-      e: base64url.encode(intToBuf(privateKey.e)),
-      n: base64url.encode(intToBuf(privateKey.n)),
-      p: base64url.encode(intToBuf(privateKey.p)),
-      q: base64url.encode(intToBuf(privateKey.q)),
-      dp: base64url.encode(intToBuf(privateKey.dp)),
-      dq: base64url.encode(intToBuf(privateKey.dq)),
-      qi: base64url.encode(intToBuf(privateKey.qi)),
-    },
-    RSA_ALG,
-    true,
-    ["sign"],
+  return new Uint8Array(
+    await crypto.subtle.exportKey("pkcs8", privateKey.signingKey),
   );
-  return new Uint8Array(await crypto.subtle.exportKey("pkcs8", key));
 }
 
 export async function exportRsaPublicKey(
   publicKey: RsaPublicKey,
 ): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey(
-    "jwk",
-    {
-      kty: "RSA",
-      alg: "RS1",
-      e: base64url.encode(intToBuf(publicKey.e)),
-      n: base64url.encode(intToBuf(publicKey.n)),
-    },
-    RSA_ALG,
-    true,
-    ["verify"],
+  return new Uint8Array(
+    await crypto.subtle.exportKey("spki", publicKey.verifyKey),
   );
-  return new Uint8Array(await crypto.subtle.exportKey("spki", key));
 }
 
 export function encryptRsaPkcs1(
@@ -138,20 +112,22 @@ export function encryptRsaPkcs1(
   const ps = crypto.getRandomValues(em.subarray(2, -data.length - 1));
   for (let i = 0; i < ps.length; i++) ps[i] |= 1;
   em.set(data, em.length - data.length);
-  return Promise.resolve(intToBuf(rsaep(publicKey, bufToInt(em)), em.length));
+  const c = encrypt(publicKey, bigIntFromBuf(em));
+  return Promise.resolve(bigIntToBuf(c, em.length));
 }
 
 export function decryptRsaPkcs1(
   privateKey: RsaPrivateKey,
   data: Uint8Array,
 ): Promise<Uint8Array> {
-  const em = intToBuf(rsadp(privateKey, bufToInt(data)), privateKey.length);
+  const m = decrypt(privateKey, bigIntFromBuf(data));
+  const em = bigIntToBuf(m, privateKey.length);
   if (em[0] != 0 || em[1] != 2) throw new Error("Decryption error");
   let i = 2;
   while (em[i] != 0 && i < em.length) i++;
   if (i == em.length) throw new Error("Decryption error");
   if (i < 10) throw new Error("Decryption error");
-  return Promise.resolve(em.subarray(i));
+  return Promise.resolve(em.subarray(i + 1));
 }
 
 export async function signRsaPkcs1Sha256(
@@ -176,32 +152,19 @@ const RSA_ALG = {
   hash: "SHA-256",
 };
 
-function intByteLength(x: bigint) {
-  let length = 0;
-  while (x != 0n) {
-    x >>= 8n;
-    length++;
-  }
-  return length;
+function encrypt(key: RsaPublicKey, m: bigint) {
+  return powerMod(m, key.e, key.n);
 }
 
-function intToBuf(x: bigint, length: number = intByteLength(x)) {
-  const buf = new Uint8Array(length);
-  for (let i = length; i--;) {
-    if (x == 0n) break;
-    buf[i] = Number(x & 0xffn);
-    x >>= 8n;
-  }
-  return buf;
+function decrypt(key: RsaPrivateKey, c: bigint) {
+  const m1 = powerMod(c % key.p, key.dp, key.p);
+  const m2 = powerMod(c % key.q, key.dq, key.q);
+  let h = (key.qi * (m1 - m2)) % key.p;
+  if (h < 0n) h += key.p;
+  return (m2 + h * key.q) % (key.q * key.p);
 }
 
-function bufToInt(buf: Uint8Array) {
-  let x = 0n;
-  for (const b of buf) x = x << 8n | BigInt(b);
-  return x;
-}
-
-function powMod(base: bigint, exp: bigint, m: bigint) {
+function powerMod(base: bigint, exp: bigint, m: bigint) {
   base %= m;
   let res = 1n;
   while (exp != 0n) {
@@ -212,10 +175,27 @@ function powMod(base: bigint, exp: bigint, m: bigint) {
   return res;
 }
 
-function rsaep(k: RsaPublicKey, m: bigint) {
-  return powMod(m, k.e, k.n);
+function bigIntBufLength(x: bigint) {
+  let length = 0;
+  while (x != 0n) {
+    x >>= 8n;
+    length++;
+  }
+  return length;
 }
 
-function rsadp(k: RsaPrivateKey, c: bigint) {
-  return powMod(c, k.d, k.n);
+function bigIntToBuf(x: bigint, length: number = bigIntBufLength(x)) {
+  const buf = new Uint8Array(length);
+  for (let i = length; i--;) {
+    if (x == 0n) break;
+    buf[i] = Number(x & 0xffn);
+    x >>= 8n;
+  }
+  return buf;
+}
+
+function bigIntFromBuf(buf: Uint8Array) {
+  let x = 0n;
+  for (const b of buf) x = x << 8n | BigInt(b);
+  return x;
 }
