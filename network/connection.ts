@@ -32,6 +32,8 @@ export class Connection {
 
   constructor(conn: Deno.Conn) {
     this.#conn = conn;
+    // @ts-ignore: TcpConn.setNoDelay
+    if ("dlopen" in Deno) conn.setNoDelay(true);
   }
 
   get closed() {
