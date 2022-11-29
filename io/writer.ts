@@ -153,7 +153,7 @@ export class Writer {
     return this;
   }
 
-  writeCompoundTag(tag: CompoundTag) {
+  writeCompoundTag(tag: CompoundTag | null) {
     const writer = new TagWriter(this.#buf, this.#pos);
     writer.writeCompoundTag(tag);
     const bytes = writer.bytes();

@@ -132,20 +132,23 @@ export class Reader {
     return BigInt.asIntN(64, x);
   }
 
-  readByteArray(): Uint8Array {
+  readByteArray(maxLength?: number): Uint8Array {
     const length = this.readVarInt();
+    if (maxLength && length > maxLength) throw new Error("Array is too large");
     return this.read(length);
   }
 
-  readIntArray(): Int32Array {
+  readIntArray(maxLength?: number): Int32Array {
     const length = this.readVarInt();
+    if (maxLength && length > maxLength) throw new Error("Array is too large");
     const array = new Int32Array(length);
     for (let i = 0; i < length; i++) array[i] = this.readInt();
     return array;
   }
 
-  readLongArray(): BigInt64Array {
+  readLongArray(maxLength?: number): BigInt64Array {
     const length = this.readVarInt();
+    if (maxLength && length > maxLength) throw new Error("Array is too large");
     const array = new BigInt64Array(length);
     for (let i = 0; i < length; i++) array[i] = this.readLong();
     return array;
