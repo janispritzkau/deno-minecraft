@@ -28,6 +28,10 @@ Cryptographic primitives used for protocol encryption, signing, and signature ve
 
 Utilites for reading and writing binary data.
 
+### [`locale/`](https://deno.land/x/minecraft_lib/locale/)
+
+Types used for specifying languages and getting translation strings.
+
 ### [`nbt/`](https://deno.land/x/minecraft_lib/nbt/)
 
 An implementation of Minecraft's named binary tag (NBT) format.
@@ -35,3 +39,7 @@ An implementation of Minecraft's named binary tag (NBT) format.
 ### [`network/`](https://deno.land/x/minecraft_lib/network/)
 
 Network primitives used for building clients and servers.
+
+### [`world/`](https://deno.land/x/minecraft_lib/world/)
+
+Types and abstractions for defining blocks and items.
