@@ -2,18 +2,9 @@ import {
   assertEquals,
   assertInstanceOf,
   assertThrows,
-} from "https://deno.land/std@0.161.0/testing/asserts.ts";
-
-import {
-  ByteTag,
-  DoubleTag,
-  FloatTag,
-  IntTag,
-  LongTag,
-  ShortTag,
-  StringTag,
-} from "./tag.ts";
+} from "https://deno.land/std@0.167.0/testing/asserts.ts";
 import { parse, stringify } from "./snbt.ts";
+import { ByteTag, DoubleTag, FloatTag, IntTag, LongTag, ShortTag, StringTag } from "./tag.ts";
 
 const SNBT_TEST = String.raw`
 {

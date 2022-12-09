@@ -1,8 +1,4 @@
-import {
-  assert,
-  assertEquals,
-} from "https://deno.land/std@0.161.0/testing/asserts.ts";
-
+import { assert, assertEquals } from "https://deno.land/std@0.167.0/testing/asserts.ts";
 import {
   ByteArrayTag,
   ByteTag,

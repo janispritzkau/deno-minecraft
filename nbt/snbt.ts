@@ -18,11 +18,11 @@ const WHITESPACE_PATTERN = /\s+/;
 const UNQUOTED_STRING_PATTERN = /^[0-9a-z_\-.+]+$/i;
 const UNQUOTED_STRING_OPEN_PATTERN = /^[0-9a-z_\-.+]+/i;
 const INTEGER_PATTERN = /^([-+]?(?:0|[1-9][0-9]*))([bls]?)$/i;
-const FLOAT_PATTERN =
-  /^([-+]?(?:[0-9]+[.]?|[0-9]*[.][0-9]+)(?:e[-+]?[0-9]+)?)([df]?)$/i;
+const FLOAT_PATTERN = /^([-+]?(?:[0-9]+[.]?|[0-9]*[.][0-9]+)(?:e[-+]?[0-9]+)?)([df]?)$/i;
 const TRUE_PATTERN = /^true$/i;
 const FALSE_PATTERN = /^false$/i;
 
+/** Converts a named binary tag to the stringified representation. */
 export function stringify(tag: Tag): string {
   if (tag instanceof ByteTag) return `${tag.valueOf()}b`;
   if (tag instanceof ShortTag) return `${tag.valueOf()}s`;
@@ -47,6 +47,7 @@ export function stringify(tag: Tag): string {
   throw new Error("Invalid tag");
 }
 
+/** Parses a stringified named binary tag. */
 export function parse(text: string): Tag {
   const parser = new TagParser(text);
   return parser.parseTag();
@@ -265,9 +266,7 @@ class TagParser {
 
   readString() {
     const char = this.#peek();
-    return char == '"' || char == "'"
-      ? this.readQuotedString(char)
-      : this.readUnquotedString();
+    return char == '"' || char == "'" ? this.readQuotedString(char) : this.readUnquotedString();
   }
 
   readUnquotedString() {
@@ -333,6 +332,7 @@ class TagParser {
       this.#skip();
     }
   }
+
   #expect(char: string) {
     if (!this.#canRead() || this.#peek() != char) {
       throw new Error(`Expected '${char}'`);

@@ -1,16 +1,18 @@
 import { CompoundTag } from "../nbt/tag.ts";
 import { TagWriter } from "../nbt/io.ts";
+import { Uuid } from "../core/uuid.ts";
+
+const textEncoder = new TextEncoder();
 
 export class Writer {
   #buf: Uint8Array;
   #view: DataView;
   #pos: number;
-  #textEncoder = new TextEncoder();
 
-  constructor(buf: Uint8Array = new Uint8Array(16), pos = 0) {
-    this.#buf = buf;
-    this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-    this.#pos = pos;
+  constructor(buf?: Uint8Array) {
+    this.#buf = buf ?? new Uint8Array(16);
+    this.#view = new DataView(this.#buf.buffer, this.#buf.byteOffset, this.#buf.byteLength);
+    this.#pos = 0;
   }
 
   bytes(): Uint8Array {
@@ -99,19 +101,14 @@ export class Writer {
   }
 
   writeString(text: string): this {
-    const buf = this.#textEncoder.encode(text);
+    const buf = textEncoder.encode(text);
     this.writeVarInt(buf.byteLength);
     this.write(buf);
     return this;
   }
 
-  writeJson(value: unknown): this {
-    return this.writeString(JSON.stringify(value));
-  }
-
-  writeUuid(uuid: string): this {
-    const x = BigInt(`0x${uuid.replaceAll("-", "")}`);
-    return this.writeLong(x >> 64n).writeLong(BigInt.asUintN(64, x));
+  writeUuid(uuid: Uuid): this {
+    return this.write(uuid.bytes());
   }
 
   writeVarInt(x: number): this {
@@ -160,25 +157,6 @@ export class Writer {
     this.#buf = new Uint8Array(bytes.buffer, bytes.byteOffset);
     this.#view = new DataView(bytes.buffer, bytes.byteOffset);
     this.#pos = writer.pos;
-    return this;
-  }
-
-  writeOptional<T>(
-    value: T | null | undefined,
-    writeFn: (this: this, x: T) => void,
-  ): this {
-    this.writeBoolean(value != null);
-    if (value != null) writeFn.call(this, value);
-    return this;
-  }
-
-  writeList<T>(
-    items: T[] | Iterable<T>,
-    writeFn: (this: this, item: T) => void,
-  ): this {
-    const list = items instanceof Array ? items : [...items];
-    this.writeVarInt(list.length);
-    for (const item of list) writeFn.call(this, item);
     return this;
   }
 

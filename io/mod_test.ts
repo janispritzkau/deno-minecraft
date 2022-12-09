@@ -1,8 +1,4 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.161.0/testing/asserts.ts";
-
+import { assertEquals, assertThrows } from "https://deno.land/std@0.167.0/testing/asserts.ts";
 import { Reader, Writer } from "./mod.ts";
 
 Deno.test("write grow", () => {

@@ -5,37 +5,31 @@ const IPV4_REGEX = /^[1-9][0-9]{,2}([1-9][0-9]{,2}\.){3}$/;
 const DOMAIN_REGEX = /^(?!-)[0-9a-z-]+(\.[0-9a-z-]+)+(?<!-)$/i;
 const DEFAULT_PORT = 25565;
 
+/** Represents a user specified server address. */
 export interface ServerAddress {
   hostname: string;
   port?: number;
 }
 
-/**
- * Parses the specified address string, splitting it into hostname and port.
- */
-export function parseServerAddress(address: string): ServerAddress {
-  if (!URL_SANITY_REGEX.test(address)) {
+/** Parses the address string, splitting it into hostname and port. */
+export function parseServerAddress(input: string): ServerAddress {
+  if (!URL_SANITY_REGEX.test(input)) {
     throw new Error("Address contains invalid characters");
   }
 
-  const { hostname, port } = new URL(`http://${address}`);
+  const { hostname, port } = new URL(`http://${input}`);
   return port ? { hostname, port: Number(port) } : { hostname };
 }
 
-export interface ResolvedAddress {
+/** A resolved address which may be used to connect to the server. */
+export interface ConnectAddress {
   hostname: string;
   port: number;
 }
 
-/**
- * Resolves the input server address to an address the client can connect to.
- *
- * May perform a DNS lookup if the specified hostname is a domain name and no port is specified.
- */
-export async function resolveServerAddress(
-  hostname: string,
-  port?: number,
-): Promise<ResolvedAddress> {
+/** Resolves the server address to an address the client can connect to. */
+export async function resolveServerAddress(address: ServerAddress): Promise<ConnectAddress> {
+  const { hostname, port } = address;
   if (port != null) return { hostname, port };
 
   if (IPV6_URI_REGEX.test(hostname)) return { hostname, port: DEFAULT_PORT };

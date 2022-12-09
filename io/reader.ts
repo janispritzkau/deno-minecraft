@@ -1,15 +1,18 @@
 import { CompoundTag } from "../nbt/tag.ts";
 import { TagReader } from "../nbt/io.ts";
+import { Uuid } from "../core/uuid.ts";
+
+const textDecoder = new TextDecoder();
 
 export class Reader {
   #buf: Uint8Array;
   #view: DataView;
-  #pos = 0;
-  #textDecoder = new TextDecoder();
+  #pos: number;
 
   constructor(buf: Uint8Array) {
     this.#buf = buf;
     this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    this.#pos = 0;
   }
 
   get bytesRead(): number {
@@ -91,25 +94,16 @@ export class Reader {
     return this.#buf.subarray(this.#pos, this.#pos += length);
   }
 
-  readToEnd(): Uint8Array {
-    return this.read(this.unreadBytes);
-  }
-
   readString(maxLength?: number): string {
     const len = this.readVarInt();
-    if (maxLength && len > maxLength) throw new Error("String is too long");
-    return this.#textDecoder.decode(this.read(len));
+    if (maxLength && len > maxLength) {
+      throw new Error(`String is larger than the allow ${maxLength} bytes`);
+    }
+    return textDecoder.decode(this.read(len));
   }
 
-  readJson(maxLength?: number): unknown {
-    return JSON.parse(this.readString(maxLength));
-  }
-
-  readUuid(): string {
-    return (
-      this.readUnsignedLong() << 64n |
-      this.readUnsignedLong()
-    ).toString(16).padStart(32, "0");
+  readUuid(): Uuid {
+    return Uuid.from(this.read(16));
   }
 
   readVarInt(): number {
@@ -159,17 +153,5 @@ export class Reader {
     const tag = reader.readCompoundTag();
     this.#pos += reader.bytesRead;
     return tag;
-  }
-
-  readOptional<T>(readFn: (reader: Reader) => T): T | null {
-    return this.readBoolean() ? readFn.call(this, this) : null;
-  }
-
-  readList<T>(readFn: (reader: Reader) => T): T[] {
-    return [...this.readListIterable(readFn)];
-  }
-
-  *readListIterable<T>(readFn: (reader: Reader) => T): Iterable<T> {
-    for (let i = this.readVarInt(); i--;) yield readFn.call(this, this);
   }
 }

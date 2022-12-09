@@ -1,15 +1,14 @@
+import { Buffer } from "https://deno.land/std@0.167.0/io/buffer.ts";
 import {
   assert,
   assertEquals,
   assertRejects,
   assertStrictEquals,
-} from "https://deno.land/std@0.161.0/testing/asserts.ts";
-import { Buffer } from "https://deno.land/std@0.161.0/io/buffer.ts";
-
+} from "https://deno.land/std@0.167.0/testing/asserts.ts";
 import { Writer } from "../io/mod.ts";
+import { Connection } from "./connection.ts";
 import { Packet } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
-import { Connection } from "./connection.ts";
 
 Deno.test("read zero packet length", async () => {
   const conn = new Connection(mockConnBuffer(new Buffer([0])));
@@ -98,7 +97,7 @@ Deno.test("set protocol", async () => {
   let handlerInstance: unknown;
   let handlerCalls = 0;
 
-  class TestPacket implements Packet<unknown> {
+  class TestPacket implements Packet {
     static read() {
       return new this();
     }
@@ -110,7 +109,7 @@ Deno.test("set protocol", async () => {
     }
   }
 
-  const protocol = new Protocol<unknown, unknown>();
+  const protocol = new Protocol();
   protocol.registerServerbound(0, TestPacket);
   protocol.registerClientbound(1, TestPacket);
 

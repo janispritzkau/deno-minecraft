@@ -1,5 +1,5 @@
 import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
-import { Aes128Cfb8 } from "../crypto/aes.ts";
+import { Aes128Cfb8 } from "../crypto/_aes.ts";
 import { Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
@@ -11,16 +11,13 @@ const MAX_PACKET_LEN = (1 << 21) - 1;
  *
  * It handles packet framing, compression, encryption, and serialization of
  * packets when a protocol is specified.
- *
- * To create a connection, use the `Deno.connect` and `Deno.listen` functions
- * to obtain a `Deno.Conn` and use the constructor to create a new {@linkcode Connection}.
  */
 export class Connection {
   #conn: Deno.Conn;
   #closed = false;
 
   #isServer = false;
-  #protocol: Protocol<unknown, unknown> | null = null;
+  #protocol: Protocol<PacketHandler | void, PacketHandler | void> | null = null;
   #handler: PacketHandler | null = null;
   #compressionThreshold = -1;
   #cipher: Aes128Cfb8 | null = null;
@@ -40,8 +37,9 @@ export class Connection {
     return this.#closed;
   }
 
+  /** Sets the client protocol, optionally specifying a packet handler. */
   setServerProtocol<Handler extends PacketHandler | void>(
-    protocol: Protocol<Handler, unknown>,
+    protocol: Protocol<Handler, PacketHandler | void>,
     handler?: Handler,
   ) {
     this.#isServer = true;
@@ -49,8 +47,9 @@ export class Connection {
     if (handler) this.#handler = handler;
   }
 
+  /** Sets the server protocol, optionally specifying a packet handler. */
   setClientProtocol<Handler extends PacketHandler | void>(
-    protocol: Protocol<unknown, Handler>,
+    protocol: Protocol<PacketHandler | void, Handler>,
     handler?: Handler,
   ) {
     this.#isServer = false;
@@ -68,10 +67,7 @@ export class Connection {
     this.#compressionThreshold = threshold;
   }
 
-  /**
-   * Enables encryption using the AES-128-CFB8 cipher and initializes it
-   * with the specified key.
-   */
+  /** Enables encryption on the connection and initializes the cipher with the specified key. */
   setEncryption(key: Uint8Array) {
     this.#cipher = new Aes128Cfb8(key, key);
     this.#decipher = new Aes128Cfb8(key, key);
@@ -82,7 +78,7 @@ export class Connection {
    *
    * If no protocol is set, this method will throw an exception.
    */
-  async send(packet: Packet<unknown>): Promise<void> {
+  async send(packet: Packet): Promise<void> {
     if (!this.#protocol) throw new Error("No protocol was set");
 
     await this.sendRaw(
@@ -118,6 +114,7 @@ export class Connection {
     return packet;
   }
 
+  /** Sends raw packet data. */
   async sendRaw(buf: Uint8Array): Promise<void> {
     let len = 0;
     const chunks: Uint8Array[] = [];
@@ -140,6 +137,7 @@ export class Connection {
     for (const chunk of chunks) await this.#write(chunk);
   }
 
+  /** Receives the raw packet data, without deserializing it. */
   async receiveRaw(): Promise<Uint8Array | null> {
     if (this.#closed) return null;
 

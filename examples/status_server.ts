@@ -1,16 +1,14 @@
 import * as flags from "https://deno.land/std@0.161.0/flags/mod.ts";
 import { Writer } from "../io/writer.ts";
 import { Connection } from "../network/connection.ts";
-
-import handshakeProtocol, {
+import {
+  ClientboundPongResponsePacket,
+  ClientboundStatusResponsePacket,
+  handshakeProtocol,
   ServerHandshakeHandler,
-} from "../network/protocol/handshake.ts";
-
-import statusProtocol, {
-  ClientStatusPongPacket,
-  ClientStatusResponsePacket,
   ServerStatusHandler,
-} from "../network/protocol/status.ts";
+  statusProtocol,
+} from "./_protocol.ts";
 
 const args = flags.parse(Deno.args, {
   string: ["hostname", "port"],
@@ -41,17 +39,17 @@ for await (const denoConn of listener) {
 
 function createHandshakeHandler(conn: Connection): ServerHandshakeHandler {
   return {
-    async handleHandshake(packet) {
-      if (packet.nextState == 1) {
+    async handleIntention(packet) {
+      if (packet.intention == 1) {
         return conn.setServerProtocol(
           statusProtocol,
           createStatusHandler(conn),
         );
-      } else if (packet.nextState == 2) {
-        await conn.receiveRaw(); // wait for login start packet
+      } else if (packet.intention == 2) {
+        await conn.receiveRaw(); // wait for hello packet
         await conn.sendRaw(
           new Writer().writeVarInt(0)
-            .writeJson({ text: "Login not implemented!" })
+            .writeString(JSON.stringify({ text: "Login not implemented!" }))
             .bytes(),
         );
       }
@@ -62,17 +60,17 @@ function createHandshakeHandler(conn: Connection): ServerHandshakeHandler {
 
 function createStatusHandler(conn: Connection): ServerStatusHandler {
   return {
-    async handleRequest() {
+    async handleStatusRequest() {
       await conn.send(
-        new ClientStatusResponsePacket({
+        new ClientboundStatusResponsePacket({
           version: { name: "1.19.2", protocol: 760 },
           players: { online: 0, max: 0 },
           description: "Fake status message",
         }),
       );
     },
-    async handlePing(ping) {
-      await conn.send(new ClientStatusPongPacket(ping.id));
+    async handlePingRequest(packet) {
+      await conn.send(new ClientboundPongResponsePacket(packet.time));
     },
   };
 }

@@ -63,9 +63,7 @@ let CipherImpl: new (key: Uint8Array, iv: Uint8Array) => Cipher = CipherJs;
 const OPENSSL_PATH = await Deno.permissions.query({
   name: "env",
   variable: "OPENSSL_PATH",
-}).then(({ state }) =>
-  state == "granted" ? Deno.env.get("OPENSSL_PATH") : null
-);
+}).then(({ state }) => state == "granted" ? Deno.env.get("OPENSSL_PATH") : null);
 
 if (OPENSSL_PATH && "dlopen" in Deno) {
   // @ts-ignore unstable api
