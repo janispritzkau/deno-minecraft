@@ -30,5 +30,3 @@ export class BlockPos {
     );
   }
 }
-
-console.log(new BlockPos(852, 70, -492).pack());
