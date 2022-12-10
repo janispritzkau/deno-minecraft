@@ -70,12 +70,11 @@ export class BlockStateDefinition {
 
     this.#possibleStates = Object.freeze(states);
 
-    let offset = 0;
     this.#propertyOffsets = {};
-    for (let index = properties.length; index--;) {
+    for (let offset = 1, index = properties.length; index--;) {
       const property = properties[index];
-      offset *= property.possibleValues.length;
       this.#propertyOffsets[property.name] = property.possibleValues.map((_, i) => i * offset);
+      offset *= property.possibleValues.length;
     }
   }
 
