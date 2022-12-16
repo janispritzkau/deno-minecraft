@@ -1,10 +1,5 @@
-import { CompoundTag } from "../nbt/tag.ts";
-import { TagReader } from "../nbt/io.ts";
-import { Uuid } from "../core/uuid.ts";
-
-const textDecoder = new TextDecoder();
-
 export class Reader {
+  #textDecoder = new TextDecoder();
   #buf: Uint8Array;
   #view: DataView;
   #pos: number;
@@ -87,25 +82,6 @@ export class Reader {
     return Boolean(this.readByte());
   }
 
-  read(length: number): Uint8Array {
-    if (this.#pos + length > this.#buf.byteLength) {
-      throw new Error("Unexpected end of buffer");
-    }
-    return this.#buf.subarray(this.#pos, this.#pos += length);
-  }
-
-  readString(maxLength?: number): string {
-    const len = this.readVarInt();
-    if (maxLength && len > maxLength) {
-      throw new Error(`String is larger than the allow ${maxLength} bytes`);
-    }
-    return textDecoder.decode(this.read(len));
-  }
-
-  readUuid(): Uuid {
-    return Uuid.from(this.read(16));
-  }
-
   readVarInt(): number {
     let x = 0, n = 0, b: number;
     do {
@@ -126,15 +102,53 @@ export class Reader {
     return BigInt.asIntN(64, x);
   }
 
+  read(length: number): Uint8Array {
+    if (this.#pos + length > this.#buf.byteLength) {
+      throw new Error("Unexpected end of buffer");
+    }
+    return this.#buf.subarray(this.#pos, this.#pos += length);
+  }
+
+  readString(maxLength?: number): string {
+    maxLength ??= 32767;
+    const length = this.readVarInt();
+    if (length > maxLength * 3) {
+      throw new Error(
+        `The received string length is too large (${length} exceeds the maximum of ${maxLength} bytes)`,
+      );
+    } else if (length < 0) {
+      throw new Error("The received string length cannot be negative");
+    }
+    const text = this.#textDecoder.decode(this.read(length));
+    if (text.length > maxLength) {
+      throw new Error(
+        `The received string is too long (${length} exceeds the maximum of ${maxLength})`,
+      );
+    }
+    return text;
+  }
+
   readByteArray(maxLength?: number): Uint8Array {
     const length = this.readVarInt();
-    if (maxLength && length > maxLength) throw new Error("Array is too large");
+    if (maxLength && length > maxLength) {
+      throw new Error(
+        `The received array length is too large (${length} exceeds the maximum length of ${maxLength})`,
+      );
+    } else if (length < 0) {
+      throw new Error("The received array length cannot be negative");
+    }
     return this.read(length);
   }
 
   readIntArray(maxLength?: number): Int32Array {
     const length = this.readVarInt();
-    if (maxLength && length > maxLength) throw new Error("Array is too large");
+    if (maxLength && length > maxLength) {
+      throw new Error(
+        `The received array length is too large (${length} exceeds the maximum length of ${maxLength})`,
+      );
+    } else if (length < 0) {
+      throw new Error("The received array length cannot be negative");
+    }
     const array = new Int32Array(length);
     for (let i = 0; i < length; i++) array[i] = this.readInt();
     return array;
@@ -142,16 +156,15 @@ export class Reader {
 
   readLongArray(maxLength?: number): BigInt64Array {
     const length = this.readVarInt();
-    if (maxLength && length > maxLength) throw new Error("Array is too large");
+    if (maxLength && length > maxLength) {
+      throw new Error(
+        `The received array length is too large (${length} exceeds the maximum length of ${maxLength})`,
+      );
+    } else if (length < 0) {
+      throw new Error("The received array length cannot be negative");
+    }
     const array = new BigInt64Array(length);
     for (let i = 0; i < length; i++) array[i] = this.readLong();
     return array;
-  }
-
-  readCompoundTag(): CompoundTag | null {
-    const reader = new TagReader(this.#buf.subarray(this.#pos));
-    const tag = reader.readCompoundTag();
-    this.#pos += reader.bytesRead;
-    return tag;
   }
 }

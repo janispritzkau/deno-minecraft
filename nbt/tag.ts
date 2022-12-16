@@ -1,4 +1,4 @@
-import { TagWriter } from "./io.ts";
+import { TagWriter } from "./_io.ts";
 import { IO_GET_ID, IO_WRITE, NO_UNWRAP } from "./_tag.ts";
 
 export abstract class Tag<T = unknown> {

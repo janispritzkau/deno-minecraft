@@ -1,10 +1,5 @@
-import { CompoundTag } from "../nbt/tag.ts";
-import { TagWriter } from "../nbt/io.ts";
-import { Uuid } from "../core/uuid.ts";
-
-const textEncoder = new TextEncoder();
-
 export class Writer {
+  #textEncoder = new TextEncoder();
   #buf: Uint8Array;
   #view: DataView;
   #pos: number;
@@ -93,24 +88,6 @@ export class Writer {
     return this.writeByte(Number(x));
   }
 
-  write(buf: Uint8Array): this {
-    this.grow(buf.byteLength);
-    this.#buf.set(buf, this.#pos);
-    this.#pos += buf.byteLength;
-    return this;
-  }
-
-  writeString(text: string): this {
-    const buf = textEncoder.encode(text);
-    this.writeVarInt(buf.byteLength);
-    this.write(buf);
-    return this;
-  }
-
-  writeUuid(uuid: Uuid): this {
-    return this.write(uuid.bytes());
-  }
-
   writeVarInt(x: number): this {
     do {
       let b = x & 0x7f;
@@ -132,6 +109,31 @@ export class Writer {
     return this;
   }
 
+  write(buf: Uint8Array): this {
+    this.grow(buf.byteLength);
+    this.#buf.set(buf, this.#pos);
+    this.#pos += buf.byteLength;
+    return this;
+  }
+
+  writeString(text: string, maxLength?: number): this {
+    maxLength ??= 32767;
+    if (text.length > maxLength) {
+      throw new Error(
+        `String is too long (${text.length} exceeds the maximum length of ${maxLength})`,
+      );
+    }
+    const buf = this.#textEncoder.encode(text);
+    if (buf.length > maxLength * 3) {
+      throw new Error(
+        `String is too large (${buf.length} exceeds maximum length of ${maxLength * 3} bytes)`,
+      );
+    }
+    this.writeVarInt(buf.byteLength);
+    this.write(buf);
+    return this;
+  }
+
   writeByteArray(array: Uint8Array): this {
     this.writeVarInt(array.length);
     this.write(array);
@@ -147,16 +149,6 @@ export class Writer {
   writeLongArray(array: BigInt64Array): this {
     this.writeVarInt(array.length);
     for (const x of array) this.writeLong(x);
-    return this;
-  }
-
-  writeCompoundTag(tag: CompoundTag | null) {
-    const writer = new TagWriter(this.#buf, this.#pos);
-    writer.writeCompoundTag(tag);
-    const bytes = writer.bytes();
-    this.#buf = new Uint8Array(bytes.buffer, bytes.byteOffset);
-    this.#view = new DataView(bytes.buffer, bytes.byteOffset);
-    this.#pos = writer.pos;
     return this;
   }
 
