@@ -90,6 +90,9 @@ Deno.test("wrap tag", () => {
       }),
     ]),
   );
+
+  assertEquals(wrap(false), new ByteTag(0))
+  assertEquals(wrap(true), new ByteTag(1))
 });
 
 Deno.test("unwrap tag", () => {

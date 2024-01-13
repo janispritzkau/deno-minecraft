@@ -54,6 +54,10 @@ export class ByteTag extends Tag<number> {
   [NO_UNWRAP](): true {
     return true;
   }
+
+  toBoolean(): boolean {
+    return this.valueOf() != 0
+  }
 }
 
 export class ShortTag extends Tag<number> {

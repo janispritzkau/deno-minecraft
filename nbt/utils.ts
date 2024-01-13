@@ -1,5 +1,6 @@
 import {
   ByteArrayTag,
+  ByteTag,
   CompoundTag,
   DoubleTag,
   IntArrayTag,
@@ -59,6 +60,7 @@ export function wrap(value: TagValue): Tag {
   }
   if (typeof value == "string") return new StringTag(value);
   if (typeof value == "number") return new DoubleTag(value);
+  if (typeof value == "boolean") return new ByteTag(+value);
   if (typeof value == "bigint") return new LongTag(value);
   throw new Error("Invalid value");
 }
@@ -70,9 +72,9 @@ export function wrap(value: TagValue): Tag {
 export function unwrap<T extends Tag>(tag: T): UnwrapTag<T>;
 export function unwrap(tag: Tag): UnwrapTag<Tag> {
   if (tag[NO_UNWRAP]()) return tag;
-  if (tag instanceof ListTag) return tag.valueOf().map(unwrap);
-  if (!(tag instanceof CompoundTag)) return tag.valueOf() as unknown;
-  const obj: Record<string, unknown> = {};
+  if (tag instanceof ListTag) return (tag.valueOf() as Tag[]).map(unwrap);
+  if (!(tag instanceof CompoundTag)) return tag.valueOf() as TagValue;
+  const obj: Record<string, TagValue> = {};
   for (const [key, value] of tag.valueOf()) obj[key] = unwrap(value);
   return obj;
 }
@@ -80,6 +82,7 @@ export function unwrap(tag: Tag): UnwrapTag<Tag> {
 type TagValue =
   | string
   | number
+  | boolean
   | bigint
   | Uint8Array
   | Int32Array
@@ -92,20 +95,36 @@ interface CompoundValue {
   [key: string]: TagValue;
 }
 
-type WrapValue<T> = T extends Tag ? T
-  : T extends Record<string, TagValue> ? CompoundTag
-  : T extends Array<infer V> ? ListTag<WrapValue<V>>
-  : T extends string ? StringTag
-  : T extends number ? DoubleTag
-  : T extends bigint ? LongTag
-  : T extends Uint8Array ? ByteArrayTag
-  : T extends Int32Array ? IntArrayTag
-  : T extends BigInt64Array ? LongArrayTag
+type WrapValue<T> = T extends Tag
+  ? T
+  : T extends Record<string, TagValue>
+  ? CompoundTag
+  : T extends Array<infer V>
+  ? ListTag<WrapValue<V>>
+  : T extends string
+  ? StringTag
+  : T extends number
+  ? DoubleTag
+  : T extends boolean
+  ? ByteTag
+  : T extends bigint
+  ? LongTag
+  : T extends Uint8Array
+  ? ByteArrayTag
+  : T extends Int32Array
+  ? IntArrayTag
+  : T extends BigInt64Array
+  ? LongArrayTag
   : Tag;
 
-type UnwrapTag<T extends Tag> = ReturnType<T[typeof NO_UNWRAP]> extends true ? T
+type UnwrapTag<T extends Tag> = ReturnType<T[typeof NO_UNWRAP]> extends true
+  ? T
   : UnwrapTagValueOf<ReturnType<T["valueOf"]>>;
 
-type UnwrapTagValueOf<T> = T extends Map<string, Tag> ? Record<string, unknown>
-  : T extends Array<infer V extends Tag> ? UnwrapTag<V>[]
+type UnwrapTagValueOf<T> = T extends Map<string, Tag>
+  ? Record<string, TagValue>
+  : T extends Array<infer V extends Tag>
+  ? UnwrapTag<V>[]
+  : T extends unknown
+  ? TagValue
   : T;
