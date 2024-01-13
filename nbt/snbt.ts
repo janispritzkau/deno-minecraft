@@ -29,32 +29,22 @@ export function stringify(tag: Tag): string {
   if (tag instanceof IntTag) return `${tag.valueOf()}`;
   if (tag instanceof LongTag) return `${tag.valueOf()}L`;
   if (tag instanceof FloatTag) return `${tag.valueOf()}f`;
-  if (tag instanceof DoubleTag) {
-    return `${tag.valueOf()}${Number.isInteger(tag.valueOf()) ? "d" : ""}`;
-  }
-  if (tag instanceof ByteArrayTag) return `[B;${stringifyList(tag.toList())}]`;
+  if (tag instanceof DoubleTag) return `${tag.valueOf()}d`;
+  if (tag instanceof ByteArrayTag) return stringifyList(tag.toList(), "B;");
   if (tag instanceof StringTag) return escapeWithQuotes(tag.valueOf());
-  if (tag instanceof ListTag) return `[${stringifyList(tag.valueOf())}]`;
-  if (tag instanceof CompoundTag) {
-    return `{${
-      [...tag.valueOf()]
-        .map(([k, v]) => `${stringifyKey(k)}:${stringify(v)}`)
-        .join(",")
-    }}`;
-  }
-  if (tag instanceof IntArrayTag) return `[I;${stringifyList(tag.toList())}]`;
-  if (tag instanceof LongArrayTag) return `[L;${stringifyList(tag.toList())}]`;
+  if (tag instanceof ListTag) return stringifyList(tag.valueOf());
+  if (tag instanceof CompoundTag) return stringifyCompound(tag.valueOf());
+  if (tag instanceof IntArrayTag) return stringifyList(tag.toList(), "I;");
+  if (tag instanceof LongArrayTag) return stringifyList(tag.toList(), "L;");
   throw new Error("Invalid tag");
 }
 
-/** Parses a stringified named binary tag. */
-export function parse(text: string): Tag {
-  const parser = new TagParser(text);
-  return parser.parseTag();
+function stringifyCompound(map: Map<string, Tag>) {
+  return `{${[...map].map(([k, v]) => `${stringifyKey(k)}:${stringify(v)}`).join(",")}}`;
 }
 
-function stringifyList(list: Tag[]) {
-  return list.map((tag) => stringify(tag)).join(",");
+function stringifyList(list: Tag[], typePrefix?: string) {
+  return `[${typePrefix ?? ""}${list.map((tag) => stringify(tag)).join(",")}]`;
 }
 
 function stringifyKey(key: string) {
@@ -78,32 +68,49 @@ function escapeChar(char: string) {
   return `\\${char}`;
 }
 
+export interface ParseOptions {
+  /**
+   * Enables lenient parsing.
+   *
+   * This allows for newline-separated key-value pairs and list items,
+   * and omitting type specifiers on items in typed arrays
+   * (e.g. `[B; 0, 1]` instead of `[B; 0b, 1b]`).
+   */
+  lenient?: boolean;
+}
+
+/** Parses a stringified named binary tag. */
+export function parse(text: string, options: ParseOptions = {}): Tag {
+  const parser = new TagParser(text, options.lenient);
+  return parser.parseTag();
+}
+
 class TagParser {
   #text: string;
+  #lenient: boolean;
   #pos = 0;
 
-  constructor(text: string) {
+  constructor(text: string, lenient = false) {
     this.#text = text;
+    this.#lenient = lenient;
   }
 
   parseTag(): Tag {
     const tag = this.readTag();
-    const lastChar = this.#peek(-1);
-
     const endPos = this.#pos;
     this.#skipWhitespace();
 
     if (this.#canRead()) {
-      if (
-        this.#pos > endPos || tag instanceof CompoundTag ||
-        tag instanceof ListTag || lastChar == "'" || lastChar == '"'
-      ) throw new Error("Unexpected non-whitespace character after tag");
-      throw new Error(`Unexpected character '${this.#peek()}' at end of tag`);
+      if (this.#pos > endPos || tag instanceof CompoundTag || tag instanceof ListTag) {
+        throw new Error("Unexpected non-whitespace character after tag");
+      } else {
+        throw new Error(`Unexpected character '${this.#peek()}' at end of tag`);
+      }
     }
     return tag;
   }
 
-  readTag(): Tag {
+  readTag(tagType?: Tag["constructor"]) {
     this.#skipWhitespace();
 
     if (!this.#canRead()) throw new Error("Expected tag");
@@ -126,11 +133,11 @@ class TagParser {
       let match = string.match(INTEGER_PATTERN);
       if (match) {
         const c = match[2];
-        if (c == "b" || c == "B") {
+        if (c == "b" || c == "B" || !c && tagType == ByteTag) {
           return new ByteTag(validateInt(Number(match[1]), 8));
-        } else if (c == "s" || c == "S") {
+        } else if (c == "s" || c == "S" || !c && tagType == ShortTag) {
           return new ShortTag(validateInt(Number(match[1]), 16));
-        } else if (c == "l" || c == "L") {
+        } else if (c == "l" || c == "L" || !c && tagType == LongTag) {
           return new LongTag(validateLong(BigInt(match[1])));
         } else {
           return new IntTag(validateInt(Number(match[1]), 32));
@@ -174,9 +181,7 @@ class TagParser {
 
       if (!this.#skipSeperator()) {
         if (this.#peek() != "}") {
-          throw new Error(
-            `Unexpected character '${this.#peek()}' at end of tag`,
-          );
+          throw new Error(`Unexpected character '${this.#peek()}' while expecting seperator`);
         }
         break;
       }
@@ -189,8 +194,7 @@ class TagParser {
   readList(): Tag {
     this.#expect("[");
 
-    // deno-lint-ignore ban-types
-    let tagType: Function | undefined;
+    let tagType: Tag["constructor"] | undefined;
     let isArray = false;
 
     if (this.#canRead(2) && this.#peek(1) == ";") {
@@ -212,7 +216,7 @@ class TagParser {
     const tags: Tag[] = [];
 
     while (this.#canRead() && this.#peek() != "]") {
-      const tag = this.readTag();
+      const tag = isArray ? this.readTag(tagType) : this.readTag();
 
       if (tagType == null) {
         tagType = tag.constructor;
@@ -226,9 +230,7 @@ class TagParser {
 
       if (!this.#skipSeperator()) {
         if (this.#peek() != "]") {
-          throw new Error(
-            `Unexpected character '${this.#peek()}' at end of tag`,
-          );
+          throw new Error(`Unexpected character '${this.#peek()}' while expecting seperator`);
         }
         break;
       }
@@ -317,13 +319,17 @@ class TagParser {
   }
 
   #skipSeperator() {
-    this.#skipWhitespace();
+    let hasNewline = false;
+    while (this.#canRead() && WHITESPACE_PATTERN.test(this.#peek())) {
+      if (this.#peek() == "\n") hasNewline = true;
+      this.#skip();
+    }
     if (this.#canRead() && this.#peek() == ",") {
       this.#skip();
       this.#skipWhitespace();
       return true;
     } else {
-      return false;
+      return this.#lenient && this.#canRead() ? hasNewline : false;
     }
   }
 

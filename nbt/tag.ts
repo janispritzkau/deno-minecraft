@@ -56,7 +56,7 @@ export class ByteTag extends Tag<number> {
   }
 
   toBoolean(): boolean {
-    return this.valueOf() != 0
+    return this.valueOf() != 0;
   }
 }
 
