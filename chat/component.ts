@@ -1,7 +1,7 @@
-import { cyan } from "https://deno.land/std@0.167.0/fmt/colors.ts";
 import * as json from "../_utils/json.ts";
-import { Style } from "./style.ts";
+import { cyan } from "../deps.ts";
 import { JsonComponent, JsonTextComponent, JsonTranslatableComponent } from "./_json.ts";
+import { Style } from "./style.ts";
 
 export abstract class Component {
   children: Component[] = [];

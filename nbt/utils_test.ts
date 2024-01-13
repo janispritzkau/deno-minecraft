@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "https://deno.land/std@0.167.0/testing/asserts.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.210.0/assert/mod.ts";
 import {
   ByteArrayTag,
   ByteTag,
@@ -91,8 +91,8 @@ Deno.test("wrap tag", () => {
     ]),
   );
 
-  assertEquals(wrap(false), new ByteTag(0))
-  assertEquals(wrap(true), new ByteTag(1))
+  assertEquals(wrap(false), new ByteTag(0));
+  assertEquals(wrap(true), new ByteTag(1));
 });
 
 Deno.test("unwrap tag", () => {

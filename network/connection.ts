@@ -1,5 +1,5 @@
-import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
 import { Aes128Cfb8 } from "../crypto/_aes.ts";
+import { zlib } from "../deps.ts";
 import { Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketConstructor, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";

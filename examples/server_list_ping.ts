@@ -1,4 +1,4 @@
-import * as flags from "https://deno.land/std@0.167.0/flags/mod.ts";
+import { parseArgs } from "https://deno.land/std@0.210.0/cli/mod.ts";
 import { Connection, parseServerAddress, resolveServerAddress } from "../network/mod.ts";
 import {
   ClientboundStatusResponsePacket,
@@ -8,7 +8,7 @@ import {
   statusProtocol,
 } from "./_protocol.ts";
 
-const args = flags.parse(Deno.args, {
+const args = parseArgs(Deno.args, {
   string: ["protocol"],
   default: { protocol: 760 },
 });

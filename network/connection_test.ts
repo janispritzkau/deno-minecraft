@@ -1,10 +1,5 @@
-import { Buffer } from "https://deno.land/std@0.167.0/io/buffer.ts";
-import {
-  assert,
-  assertEquals,
-  assertRejects,
-  assertStrictEquals,
-} from "https://deno.land/std@0.167.0/testing/asserts.ts";
+import { Buffer } from "https://deno.land/std@0.210.0/io/buffer.ts";
+import { assert, assertEquals, assertRejects, assertStrictEquals } from "https://deno.land/std@0.210.0/assert/mod.ts";
 import { Writer } from "../io/mod.ts";
 import { Connection } from "./connection.ts";
 import { Packet } from "./packet.ts";
@@ -194,5 +189,5 @@ function mockConn(base: Partial<Deno.Conn> = {}): Deno.Conn {
     readable: new ReadableStream(),
     writable: new WritableStream(),
     ...base,
-  };
+  } as Deno.Conn;
 }

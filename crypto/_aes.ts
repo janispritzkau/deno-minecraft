@@ -1,4 +1,4 @@
-import { Aes } from "https://deno.land/x/crypto@v0.10.0/aes.ts";
+import { Aes } from "../deps.ts";
 
 export class Aes128Cfb8 implements Cipher {
   #cipher: Cipher;

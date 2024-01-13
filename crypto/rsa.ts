@@ -1,4 +1,4 @@
-import * as base64url from "https://deno.land/std@0.167.0/encoding/base64url.ts";
+import { decodeBase64Url } from "../deps.ts";
 
 const RSA_ALG = {
   name: "RSASSA-PKCS1-v1_5",
@@ -56,16 +56,16 @@ export async function importRsaPrivateKey(
     ]);
   if (privateKey.type != "private") throw new Error("Key must be private key");
   const jwk = await crypto.subtle.exportKey("jwk", privateKey);
-  const n = base64url.decode(jwk.n!);
+  const n = decodeBase64Url(jwk.n!);
   return new RsaPrivateKey({
     n: bigIntFromBuf(n),
-    e: bigIntFromBuf(base64url.decode(jwk.e!)),
-    d: bigIntFromBuf(base64url.decode(jwk.d!)),
-    p: bigIntFromBuf(base64url.decode(jwk.p!)),
-    q: bigIntFromBuf(base64url.decode(jwk.q!)),
-    dp: bigIntFromBuf(base64url.decode(jwk.dp!)),
-    dq: bigIntFromBuf(base64url.decode(jwk.dq!)),
-    qi: bigIntFromBuf(base64url.decode(jwk.qi!)),
+    e: bigIntFromBuf(decodeBase64Url(jwk.e!)),
+    d: bigIntFromBuf(decodeBase64Url(jwk.d!)),
+    p: bigIntFromBuf(decodeBase64Url(jwk.p!)),
+    q: bigIntFromBuf(decodeBase64Url(jwk.q!)),
+    dp: bigIntFromBuf(decodeBase64Url(jwk.dp!)),
+    dq: bigIntFromBuf(decodeBase64Url(jwk.dq!)),
+    qi: bigIntFromBuf(decodeBase64Url(jwk.qi!)),
     length: n.length,
     signingKey: privateKey,
   });
@@ -82,10 +82,10 @@ export async function importRsaPublicKey(
     ]);
   if (publicKey.type != "public") throw new Error("Key must be public key");
   const jwk = await crypto.subtle.exportKey("jwk", publicKey);
-  const n = base64url.decode(jwk.n!);
+  const n = decodeBase64Url(jwk.n!);
   return new RsaPublicKey({
     n: bigIntFromBuf(n),
-    e: bigIntFromBuf(base64url.decode(jwk.e!)),
+    e: bigIntFromBuf(decodeBase64Url(jwk.e!)),
     length: n.length,
     verifyKey: publicKey,
   });
