@@ -1,3 +1,4 @@
+import { cyan } from "https://deno.land/std@0.167.0/fmt/colors.ts";
 import * as json from "../_utils/json.ts";
 import { Style } from "./style.ts";
 import { JsonComponent, JsonTextComponent, JsonTranslatableComponent } from "./_json.ts";
@@ -77,6 +78,14 @@ export abstract class Component {
 
   append(component: Component) {
     this.children.push(component);
+  }
+
+  [Symbol.for("Deno.customInspect")](
+    inspect: typeof Deno.inspect,
+    options: Deno.InspectOptions & { indentLevel: number; depth: number },
+  ) {
+    if (options.indentLevel >= options.depth) return cyan("[Component]");
+    return `Component(${inspect(this.serialize(), options)})`;
   }
 }
 
