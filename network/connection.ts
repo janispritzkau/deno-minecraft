@@ -1,7 +1,7 @@
 import * as zlib from "https://deno.land/x/compress@v0.4.5/zlib/mod.ts";
 import { Aes128Cfb8 } from "../crypto/_aes.ts";
 import { Reader, Writer } from "../io/mod.ts";
-import { Packet, PacketHandler } from "./packet.ts";
+import { Packet, PacketConstructor, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
 
 const MAX_PACKET_LEN = (1 << 21) - 1;
@@ -99,7 +99,9 @@ export class Connection {
    * Once there are no more packets to read, e.g. because the connection has
    * been closed, this method returns a `null` value.
    */
-  async receive(): Promise<Packet | null> {
+  async receive(): Promise<Packet | null>;
+  async receive<P extends Packet>(constructor: PacketConstructor<P>): Promise<P | null>;
+  async receive(constructor?: PacketConstructor<Packet>): Promise<Packet | null> {
     if (!this.#protocol) throw new Error("No protocol was set");
 
     const buf = await this.receiveRaw();
@@ -108,6 +110,10 @@ export class Connection {
     const packet = this.#isServer
       ? this.#protocol.deserializeServerbound(buf)
       : this.#protocol.deserializeClientbound(buf);
+
+    if (constructor && packet.constructor != constructor) {
+      throw new Error("Expected to receive packet of type " + constructor.name);
+    }
 
     if (this.#handler) await packet.handle(this.#handler);
 
