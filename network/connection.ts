@@ -1,5 +1,5 @@
+import { deflateSync, inflateSync } from "node:zlib";
 import { Aes128Cfb8 } from "../crypto/_aes.ts";
-import { zlib } from "../deps.ts";
 import { Reader, Writer } from "../io/mod.ts";
 import { Packet, PacketConstructor, PacketHandler } from "./packet.ts";
 import { Protocol } from "./protocol.ts";
@@ -129,7 +129,7 @@ export class Connection {
         len = buf.byteLength + 1;
         chunks.push(new Writer().writeVarInt(0).bytes(), buf);
       } else {
-        const compressedBuf = zlib.deflate(buf);
+        const compressedBuf = deflateSync(buf);
         const lenBuf = new Writer().writeVarInt(buf.byteLength).bytes();
         len = lenBuf.byteLength + compressedBuf.byteLength;
         chunks.push(lenBuf, compressedBuf);
@@ -212,7 +212,7 @@ export class Connection {
         if (uncompressedSize == 0) return packetBuf;
         if (uncompressedSize < this.#compressionThreshold) {
           throw new Error("Packet length is below compression threshold");
-        } else return zlib.inflate(packetBuf);
+        } else return inflateSync(packetBuf);
       }
     }
   }
